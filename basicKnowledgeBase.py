@@ -1,7 +1,5 @@
 # basic implementation of knowledge base required
-
-
-
+from LibaryFunctions import getValidNeighbors
 
 
 class BasicKnowledgeBase():
@@ -13,23 +11,6 @@ class BasicKnowledgeBase():
         #get data helper will query our database for a location and return all known info
         # helper to check if loc is in dimensions
         self.dim=dim
-
-    def getValidNeighbors(dim, loc):
-        # returns every possible neighbor
-        # STILL NEED TO CHECK IF NEIGHBOR IS VALID!!!
-        neighbors = [(loc[0], loc[1] + 1), (loc[0], loc[1] - 1), (loc[0] - 1, loc[1]), (loc[0] + 1, loc[1]),
-                     (loc[0] + 1, loc[1] + 1), (loc[0] + 1, loc[1] - 1), (loc[0] - 1, loc[1] - 1),
-                     (loc[0] - 1, loc[1] + 1)]
-        finalNeighbors = []
-        for neighbor in neighbors:
-            if isValid(dim, neighbor):
-                finalNeighbors.append(neighbor)
-        return finalNeighbors
-
-    def isValid(dim, loc):
-        if loc[0] < dim and loc[0] >= 0 and loc[1] < dim and loc[1] >= 0:
-            return True
-        return False
 
     def getDataHelper(self,loc,numMinesClue):
         neighbors = getValidNeighbors(loc)
@@ -48,7 +29,7 @@ class BasicKnowledgeBase():
     def allMinesNearby(loc,self):
         initialSize = self.knownMines.size()
         if (self.safeSquares[loc])[0]-(self.safeSquares[loc])[2] == (self.safeSquares[loc])[3]:
-            neighbors = getNeighbors(loc)
+            neighbors = getValidNeighbors(loc)
             for neighbor in neighbors:
                 if isValid(dim,neighbor):
                     if neighbor not in self.safeSquares:
