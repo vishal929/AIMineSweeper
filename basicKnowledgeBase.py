@@ -27,20 +27,20 @@ class BasicKnowledgeBase():
         return (numMinesClue,numSafe,numMines,numHidden)
 
     def allMinesNearby(loc,self):
-        initialSize = self.knownMines.size()
+        added = False
+        newMines=[]
         if (self.safeSquares[loc])[0]-(self.safeSquares[loc])[2] == (self.safeSquares[loc])[3]:
             neighbors = getValidNeighbors(loc)
             for neighbor in neighbors:
-                if isValid(dim,neighbor):
-                    if neighbor not in self.safeSquares:
-                        self.knownMines.add(neighbor)
-        if initialSize !=self.knownMines.size():
-            return True
-        else:
-            return False
+                if neighbor not in self.safeSquares:
+                    self.knownMines.add(neighbor)
+                    newMines.append(neighbor)
+                    added=True
+        return added,newMines
 
     def allSafeNearby(loc,self):
-        initialSize = self.safeSquares.size()
+        added =False
+        newSafe=[]
         if 8-(self.safeSquares[loc])[0]-(self.safeSquares[loc])[1]== (self.safeSquares[loc])[3]:
             neighbors = getValidNeighbors(loc)
             for neighbor in neighbors:
@@ -48,21 +48,48 @@ class BasicKnowledgeBase():
                     numMinesClue = getQueryFromBoard(neighbor)
                     locData = self.getDataHelper(neighbor,numMinesClue)
                     self.safeSquares[neighbor]=locData
-        if initialSize!=self.safeSquares.size():
-            return True
-        else:
-            return False
-
+                    added=True
+                    newSafe.append(neighbor)
+        return added,newSafe
     def queryCellFromBoard(self,loc):
         numMinesClue =getQueryFromBoard(loc)
         if numMinesClue==-1:
-            # then agent is dead
-            # this is a mine
+            # then agent queried a mine
             self.knownMines.add(loc)
+            return True,loc
         else:
             # this is safe, we can update our info
             data = self.getDataHelper(loc,numMinesClue)
             self.safeSquares[loc]=data
+            return False,loc
 
 
+    def printKnowledge(self):
+        # method to print everything that knowledge base knows at this moment in time
+        # unknown is question marks, free is 0, and mines are 1
+        for i in range(self.dim):
+            for j in range(self.dim):
+                if (i,j) in self.knownMines:
+                    print(" 1 ",end="")
+                elif (i,j) in self.safeSquares:
+                    print(" 0 ",end="")
+                else:
+                    # then we do not know
+                    print(" ? ",end="")
+            #newline
+            print()
 
+    # updates a given matrix representation with changes that the algorithm made
+        #changes is a tuple of (True/False, listOfLocations)
+        #True means the changes are mines for sure
+        #False means the changes are free spaces for sure
+        # list of location is a list of (row,col) pairs to set
+    def setMatrix(self,matrix,changes):
+        if changes[0]:
+            # set these as mines
+            for loc in changes[1]:
+                matrix[loc[0]][loc[1]]=1
+        else:
+            # set these as free spaces
+            for loc in changes[1]:
+                matrix[loc[0]][loc[1]]=0
