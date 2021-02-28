@@ -27,8 +27,25 @@ class Board():
     # pass board from txt file
         #txt file has format 0 and 1 where 1 is a mine
         # calling this method with a file may overwrite the given DIMENSION!
-    def getBoardFromFile(self):
-        pass
+        # please have the txt file in the same level as this module and make sure it has the same dim as the declared board
+        # standard format is 0 for free and 1 for board
+            # due to differing formats, we will count anything not 1 as zero and anything that is 1 is a mine
+    def getBoardFromFile(self,nameOfFile):
+        txtBoard = open(nameOfFile)
+        rows = txtBoard.readlines()
+        #removing spaces between numbers in each row
+        for row in rows:
+            # removing end whitespace
+            row=row.strip()
+            # removing space between numbers and tokenizing based on this
+            row=row.split()
+        for i in range(self.dim):
+           for j in range(self.dim):
+               if rows[i][j]=="1":
+                   # this is a mine
+                   self.mines.add((i,j))
+        #closing file stream
+        txtBoard.close()
     # method below for querying a location: returns -1 if loc is mine, else returns # of mines from neighbors
     def queryPosition(self,loc):
         if loc in self.mines:
