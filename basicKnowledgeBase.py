@@ -28,19 +28,19 @@ class BasicKnowledgeBase():
 
     def allMinesNearby(loc,self):
         added = False
-        newMines=[]
+        newMines=set()
         if (self.safeSquares[loc])[0]-(self.safeSquares[loc])[2] == (self.safeSquares[loc])[3]:
             neighbors = getValidNeighbors(loc)
             for neighbor in neighbors:
                 if neighbor not in self.safeSquares:
                     self.knownMines.add(neighbor)
-                    newMines.append(neighbor)
+                    newMines.add(neighbor)
                     added=True
         return added,newMines
 
     def allSafeNearby(loc,self):
         added =False
-        newSafe=[]
+        newSafe=set()
         if 8-(self.safeSquares[loc])[0]-(self.safeSquares[loc])[1]== (self.safeSquares[loc])[3]:
             neighbors = getValidNeighbors(loc)
             for neighbor in neighbors:
@@ -49,7 +49,7 @@ class BasicKnowledgeBase():
                     locData = self.getDataHelper(neighbor,numMinesClue)
                     self.safeSquares[neighbor]=locData
                     added=True
-                    newSafe.append(neighbor)
+                    newSafe.add(neighbor)
         return added,newSafe
     def queryCellFromBoard(self,loc):
         numMinesClue =getQueryFromBoard(loc)

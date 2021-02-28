@@ -11,6 +11,8 @@ class Board():
        # boards only differ in their mine locations
             #mines are stored as tuple here (row,col)
        self.mines = set()
+       # the board keeps track of the # of times that the agent guessed wrong (hit a mine)
+       self.numTriggers=0
     # generates random board with number of mines desired
     def generateBoard(self,numMines):
         genNum=0
@@ -31,6 +33,7 @@ class Board():
     def queryPosition(self,loc):
         if loc in self.mines:
             # then this is a mine
+            self.numTriggers+=1
             return -1;
         else:
             count =0

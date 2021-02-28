@@ -21,32 +21,46 @@ def basicSolveMines(dim,hi):
                     break
 
 def basicSolveMinesStep(dim,knowledgeBase):
+    # seeing if existing data can be updated
+    minesToUpdate = set()
+    safesToUpdate = set()
+
     if (knowledgeBase is None):
         # then we initialize it
         knowledgeBase = BasicKnowledgeBase(dim)
-        return True
+        return True,minesToUpdate,safesToUpdate
     # doing a single step
     # a single step involves using knowledge base to update data
         # and then performing a query if no data can be updated
     if knowledgeBase.safeSquares.size() + knowledgeBase.knownMines.size()==dim*dim:
         # then our agent has visited every space we are done
-        return False
+        return False,minesToUpdate,safesToUpdate
 
-    # seeing if existing data can be updated
-    logicUpdated = False
+
     for safes in knowledgeBase.safeSquares:
-        if knowledgeBase.allMinesNearby(safes) or knowledgeBase.allSafeNearby(safes):
-            logicUpdated=True
+        result = knowledgeBase.allMinesNearby(safes)
+        for mines in result[1]:
+            minesToUpdate.add(mines)
+        result = knowledgeBase.allSafeNearby(safes)
+        for safeSquares in result:
+            safesToUpdate.add(safeSquares)
 
-    if not logicUpdated:
+
+    if len(minesToUpdate)==0 and len(safesToUpdate)==0:
         # then we pick a place to query
         while True:
             rand = randint(0, dim * dim)
             col = rand % dim
             row = (rand - col) / dim
-            if (row, col) not in hi.safeSquares and (row, col) not in hi.knownMines:
+            if (row, col) not in knowledgeBase.safeSquares and (row, col) not in knowledgeBase.knownMines:
                 # then we can query this
-                hi.queryCellFromBoard((row, col))
+                result=knowledgeBase.queryCellFromBoard((row, col))
+                if result:
+                    # then we hit a mine
+                    minesToUpdate.add(result[1])
+                else:
+                    # then this is a safe square
+                    safesToUpdate.add(result[1])
                 break
-    return True
+    return True,minesToUpdate,safesToUpdate
 

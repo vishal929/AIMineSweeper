@@ -39,22 +39,29 @@ class resizableAgent(tkinter.tk):
                 rects.append(rec)
             self.canvasLabels.append(rects)
         # storing a canvas that the GUI will rewrite and update
-    #changes is tuple (True/False, locList)
-        #true for changing to mine, false for free square
-        # locList is a list of locations to change
-    def updateRepresentation(self,changes):
-        # updates the color of our representation based on any changes made
-        color=None
-        if changes[0]:
-            color="red"
-        else:
-            color="blue"
-        for loc in changes[1]:
-            self.ourCanvas.itemconfig(self.canvasLabels[loc[0]][loc[1]],fill=color)
 
+    # updates given a set of mines
+    def updateMines(self,mines):
+        for mine in mines:
+            self.ourCanvas.itemconfig(self.canvasLabels[mine[0]][mine[1]],fill="red")
+    # updates given a set of safe squares
+    def updateSafeSquares(self,safeSquares):
+        for safes in safeSquares:
+            self.ourCanvas.itemconfig(self.canvasLabels[safes[0]][safes[1]],fill="blue")
     def doStepBasicKnowledgeBase(self):
         # actually doing something and then reflecting changes by updateRepresentation
-        toContinue=basicAgent.basicSolveMinesStep(self.dim,self.knowledgeBase)
+        results=basicAgent.basicSolveMinesStep(self.dim,self.knowledgeBase)
+        self.updateMines(results[1])
+        self.updateSafeSquares(results[2])
+        if (results[0]):
+            # gradual repetition
+            self.after(1000,self.doStepBasicKnowledgeBase)
+
+    def doBasicKnowledgeBaseGradual(self):
+        # gradually calling step function
+        self.doStepBasicKnowledgeBase()
+        self.mainloop()
+
 #resizing canvas code from
    # https://stackoverflow.com/questions/22835289/how-to-get-tkinter-canvas-to-dynamically-resize-to-window-width
 class ResizingCanvas(tkinter.Canvas):
