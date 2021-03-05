@@ -51,8 +51,8 @@ class BasicKnowledgeBase():
                     added=True
                     newSafe.add(neighbor)
         return added,newSafe
-    def queryCellFromBoard(self,loc):
-        numMinesClue =getQueryFromBoard(loc)
+    def queryCellFromBoard(self,loc,Board):
+        numMinesClue = Board.queryPosition(loc)
         if numMinesClue==-1:
             # then agent queried a mine
             self.knownMines.add(loc)

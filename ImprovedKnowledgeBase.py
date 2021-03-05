@@ -5,10 +5,8 @@
 
 # rules
 '''
-    1) if  clue - # revealed mines = # hidden neighbors
-            then every hidden neighbor is a mine
-    2) if number of safe neighbors (8-clue) - number of revealed safe = # hidden neighbors
-            then every hidden neighbor is safe
+
+    2)
     3) try the sum thing (if clue is 2, sum hidden neighbors set equal to 2)
         do 3 until we can conclude a cell is safe or mine, then try repeating 1 and 2
     4) if not, pick a hidden square that is a neighbor of a safe square
@@ -32,16 +30,16 @@ class ImprovedKnowledgeBase():
             # equations
             # each equation is (location is key, val is coefficient {},RHS value)
             self.equations=set()
-            pass
 
         #TODO:
             #we should only call reduce if we find equations with overlapping elements
-
+        #1) if clue -  # revealed mines = # hidden neighbors
+                #then every hidden neighbor is a mine
         def allMinesNearby(loc, self):
             added = False
             newMines = []
             if (self.safeSquares[loc])[0] - (self.safeSquares[loc])[2] == (self.safeSquares[loc])[3]:
-                neighbors = getValidNeighbors(loc)
+                neighbors = LibraryFunctions.getValidNeighbors(loc)
                 for neighbor in neighbors:
                     if neighbor not in self.safeSquares:
                         self.knownMines.add(neighbor)
@@ -49,15 +47,16 @@ class ImprovedKnowledgeBase():
                         added = True
             return added, newMines
 
-
-        def allSafeNearby(loc, self):
+        #if number of safe neighbors (8-clue) - number of revealed safe =  # hidden neighbors
+            #then every hidden neighbor is safe
+        def allSafeNearby(loc, self, Board):
             added = False
             newSafe = []
             if 8 - (self.safeSquares[loc])[0] - (self.safeSquares[loc])[1] == (self.safeSquares[loc])[3]:
-                neighbors = getValidNeighbors(loc)
+                neighbors = LibraryFunctions.getValidNeighbors(loc)
                 for neighbor in neighbors:
                     if neighbor not in self.knownMines:
-                        numMinesClue = getQueryFromBoard(neighbor)
+                        numMinesClue = self.queryCellFromBoard(neighbor, Board)
                         locData = self.getDataHelper(neighbor, numMinesClue)
                         self.safeSquares[neighbor] = locData
                         added = True
@@ -160,6 +159,7 @@ class ImprovedKnowledgeBase():
                 # removing the equation from our equation set, as we extracted all info
                 self.equations.remove(equation)
             else:
+                pass
                 #nothing this isnt solved
                 #return False
 
@@ -172,8 +172,8 @@ class ImprovedKnowledgeBase():
                     return key
 
         # helper to query cell from board and update our info about known squares
-        def queryCellFromBoard(self, loc):
-            numMinesClue = getQueryFromBoard(loc)
+        def queryCellFromBoard(self, loc,Board):
+            numMinesClue = Board.queryPosition(loc)
             if numMinesClue == -1:
                 # then agent queried a mine
                 self.knownValues[loc]=False

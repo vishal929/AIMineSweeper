@@ -46,6 +46,9 @@ class Board():
                    self.mines.add((i,j))
         #closing file stream
         txtBoard.close()
+    # converts the current configuration of the board to a txt file with the argument name for the user
+    def convertBoardToFile(self):
+        pass
     # method below for querying a location: returns -1 if loc is mine, else returns # of mines from neighbors
     def queryPosition(self,loc):
         if loc in self.mines:

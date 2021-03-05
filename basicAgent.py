@@ -20,6 +20,7 @@ def basicSolveMines(dim,hi):
                     hi.queryCellFromBoard((row,col))
                     break
 
+# step by step implementation of basicSolveMines above
 def basicSolveMinesStep(dim,knowledgeBase):
     # seeing if existing data can be updated
     minesToUpdate = set()
