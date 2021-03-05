@@ -18,12 +18,10 @@
 '''
 
 # representation
-
-knownValues={}
-
+import LibraryFunctions
 
 
-    class ImprovedKnowledgeBase():
+class ImprovedKnowledgeBase():
         def __init__(self,dim):
             self.dim=dim
             # hash values for knownValues
@@ -32,7 +30,7 @@ knownValues={}
               # of mines given by clue, # safeSquares, # mines identified for sure around it
             self.knownValues={}
             # equations
-            # (location is key, val is coefficient {},RHS value)
+            # each equation is (location is key, val is coefficient {},RHS value)
             self.equations=set()
             pass
 
@@ -73,6 +71,7 @@ knownValues={}
             pass
 
         # THIS METHOD ASSUMES THERE IS A VALID CANCELLATION POSSIBLE
+        # idea, we can just throw out the longer equation from the results
         def reductionEquation(self,firstEquation,secondEquation):
             # subtract smaller RHS value equation from larger one
             larger=None
@@ -116,8 +115,19 @@ knownValues={}
                     # removing variable from our equation after substitution
                     equation[0].pop(newDiscovery[1])
 
+
         # simple helper to detect a solved equation (i.e of the form A=0, B=1)
+            #also need to consider cases like A+B=2, A-B=1 etc.
+            # if A+B=2, then A and B are both mines
+            # if A-B=1, then we know for sure that A is a mine and B is safe
+                # in general, if # of positive coefficients equals RHS, then every positive var is a mine
+                    # it follows everything else is a safe square
         def solvedEquationDetector(self,equation):
+            #getting sum of all positive coefficients on the lhs of equation
+            lhsSum=0
+            for vars in equation[0]:
+                if equation[0][vars]>0:
+                    lhsSum += equation[0][vars]
             if (equation[0].size()==1):
                 #return True
                 key =self.solvedEquationScalar(equation);
@@ -131,10 +141,24 @@ knownValues={}
                         # we query the board for this, compile clues/other info and then update our known info
                 if solvedInfo[0]==1:
                     # this is a mine
-                    pass
+                    self.knownValues[key]=False
                 else:
                     # safe square
+                        # we can query and get other info and add it to known values
                     pass
+            elif equation[0].size()==lhsSum and lhsSum==equation[1]:
+                # then we know that every positive variable is a mine
+                    # follows that every other variable is safe
+                for vars in equation[0]:
+                    if equation[0][vars]>0:
+                        # this is a mine
+                        self.knownValues[vars]=False
+                    else:
+                        # then this is safe
+                        # we can query this and add to knowledge base
+                        pass
+                # removing the equation from our equation set, as we extracted all info
+                self.equations.remove(equation)
             else:
                 #nothing this isnt solved
                 #return False
@@ -152,10 +176,30 @@ knownValues={}
             numMinesClue = getQueryFromBoard(loc)
             if numMinesClue == -1:
                 # then agent queried a mine
-                self.knownMines.add(loc)
+                self.knownValues[loc]=False
                 return True, loc
             else:
-                # this is safe, we can update our info
-                data = self.getDataHelper(loc, numMinesClue)
-                self.safeSquares[loc] = data
+                # this is safe, we can update our info and use the clue to generate an equation
+                #representation is F/T mine or not, #safeSquares around, # mines around for sure
+                equationLHS = {}
+                equationRHS=numMinesClue
+                neighbors = LibraryFunctions.getValidNeighbors(loc,self.dim)
+                numSafeSquares=0
+                numMines=0
+                for neighbor in neighbors:
+                    if neighbor in self.knownValues:
+                        if self.knownValues[neighbor]:
+                            # this is safe
+                            numSafeSquares+=1
+                        else:
+                            # this is a mine
+                            numMines+=1
+                    else:
+                        # then this is part of a generated equation with the clue
+                            #with coefficient of 1
+                        equationLHS[neighbor]=1
+                # updating info about safe square
+                self.knownValues[loc]=True,numSafeSquares,numMines
+                # updating info about the clue associated with query
+                self.equations.add((equationLHS,equationRHS))
                 return False, loc

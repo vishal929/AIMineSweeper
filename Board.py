@@ -1,7 +1,7 @@
 # this file will simulate our minesweeper board and allow us to query certain spots for info
 from random import randint
 
-from LibaryFunctions import getValidNeighbors
+from LibraryFunctions import getValidNeighbors
 
 # BOARD KEEPS TRACK OF QUERIES THAT RESULTED IN AGENT BLOWING UP
 class Board():

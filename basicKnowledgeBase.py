@@ -1,5 +1,5 @@
 # basic implementation of knowledge base required
-from LibaryFunctions import getValidNeighbors
+from LibraryFunctions import getValidNeighbors
 
 
 class BasicKnowledgeBase():
