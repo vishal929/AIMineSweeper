@@ -34,6 +34,25 @@ class ImprovedKnowledgeBase():
         #TODO:
             #we should only call reduce if we find equations with overlapping elements
             # probability
+        # we have 3 big operations
+            '''
+                1) reduce
+                2) substitute
+                3) detect "solved" equations
+                Now what order should we pick?
+                - we need to substitute and may detect solved equations while querying
+                - with a clue, we might need to reduce, which would lead to solved equations,-->substitution
+                    -substitution itself might lead to a solved equation, which leads to more substitution
+                -IDEA: 
+                    -while reducing, we keep a list of detected "solved" equations
+                    -at the end, we call doSolve on each of these equations
+                    -then, doSolve will find the values for each variable, and call substitution on each variable
+                        -the list of solved equations detected after substitution is returned to doSolve
+                        -do solve disposes of the old list (to clear up useless equations)
+                        -while the list is not empty, it calls itself with the new list
+                Basically, the issue is not with reduce, but with the substitution -> solve ->substitution loop, 
+                    and I think this above IDEA solves the issue'''
+
         #1) if clue -  # revealed mines = # hidden neighbors
                 #then every hidden neighbor is a mine
         #  need to adapt this to knowledge base
@@ -119,8 +138,10 @@ class ImprovedKnowledgeBase():
                     # removing variable from our equation after substitution
                     equation[0].pop(newDiscovery[1])
                 # if the equation is now in solvable state after substitution, then we can update it and remove
-                if self.solvedEquationDetector(equation):
+                if self.canBeSolved(equation):
                     removedList.push(equation)
+                    # removing it from our actual knowledge base
+                    self.equations.remove(equation)
                 return removedList
 
 
@@ -134,8 +155,8 @@ class ImprovedKnowledgeBase():
         # returns true if equation is solved
         def solvedEquationDetector(self,equation):
             #getting sum of all positive coefficients on the lhs of equation
-            # solved variables are any variables solved of the form (1/0, loc) where 1 is a mine, 0 safe
-            solvedVariables=dequeue()
+
+            '''
             lhsSum=0
             for vars in equation[0]:
                 if equation[0][vars]>0:
@@ -161,32 +182,46 @@ class ImprovedKnowledgeBase():
                     solvedVariables.push((0,key))
                     pass
             elif equation[0].size()==lhsSum and lhsSum==equation[1]:
+            '''
                 # then we know that every positive variable is a mine
                     # follows that every other variable is safe
-                for vars in equation[0]:
-                    if equation[0][vars]>0:
-                        # this is a mine
-                        self.knownValues[vars]=False
-                        solvedVariables.push((1,vars))
-                    else:
-                        # then this is safe
-                        # we can query this and add to knowledge base
-                        solvedVariables.push((0,vars))
-                        pass
+            toQuery=dequeue()
+            # solved variables are any variables solved of the form (1/0, loc) where 1 is a mine, 0 safe
+            solvedVariables = dequeue()
+            for vars in equation[0]:
+                if equation[0][vars]>0:
+                    # this is a mine
+                    self.knownValues[vars]=False
+                    solvedVariables.push((1,vars))
+                else:
+                    # then this is safe
+                    # we can query this and add to knowledge base
+                    toQuery.push(vars)
+                    solvedVariables.push((0,vars))
                 # removing the equation from our equation set, as we extracted all info
                 #self.equations.remove(equation)
-            else:
-                pass
-                #nothing this isnt solved
-                #return False
+
             if solvedVariables :
                 # we found some new discoveries
                 # we can substitute that in our knowledge base
-                toRemove=dequeue()
+                toSolve=dequeue()
                 for solved in solvedVariables:
-                    toRemove+= self.substitution(solved)
-                #now toRemove is a list of all equations to remove
-                return toRemove
+                    toSolve+= self.substitution(solved)
+                #now toRemove is a list of all equations to solve and then remove
+                #return toRemove
+            # now toQuery is a list of locations to query that are safe
+            # toRemove is a list of equations to solve and then remove
+                #the equations in toSolve were already removed by substitution()
+                    # we just need to solve them
+
+            # we start with the query, then we solve again with the new list
+            for queriesToDo in toQuery:
+                self.queryCellFromBoard(queriesToDo,Board)
+            for equations in toSolve:
+                self.solvedEquationDetector(equations)
+
+
+
 
         # simple helper to scale a solved equation to final value (i.e -A=-1, 2A=2,etc.)
         def solvedEquationScalar(self,equation):
@@ -203,13 +238,17 @@ class ImprovedKnowledgeBase():
                 # then agent queried a mine
                 self.knownValues[loc]=False
                 # substitution now that we know this is a mine
-                self.substitution((1,loc))
+                toSolve=self.substitution((1,loc))
+                # toSolve is a list of solvable equations obtained after substitution
+                    # they are already removed from our knowledge base, we just need to extract the data
+                        #i.e we start a solve->substitution loop
+                for solved in toSolve:
+                    self.solvedEquationDetector(solved)
                 return True, loc
             else:
                 # this is safe, we can update our info and use the clue to generate an equation
                 #representation is F/T mine or not, #safeSquares around, # mines around for sure
-                # substitution now that we know this is a safe square
-                self.substitution((0,loc))
+
                 equationLHS = {}
                 equationRHS=numMinesClue
                 neighbors = LibraryFunctions.getValidNeighbors(loc,self.dim)
@@ -230,15 +269,23 @@ class ImprovedKnowledgeBase():
                 # updating info about safe square
                 self.knownValues[loc]=True,numSafeSquares,numMines
                 # updating info about the clue associated with query
-                self.equations.add((equationLHS,equationRHS))
+                newEquation = (equationLHS,equationRHS)
+                self.equations.add(newEquation)
+                # substitution now that we know this is a safe square
+                toSolve = self.substitution((0, loc))
+                # toSolve is a list of solved equations obtained after substitution
+                # we will initiate the solve process here before going into a reduce->solve->substitute loop below with the clue
+                for solved in toSolve:
+                    self.solvedEquationDetector(solved)
                 #checking if we can reduce anything in our knowledge base
-                self.checkReduce((equationLHS,equationRHS))
+                self.checkReduce(newEquation)
                 return False, loc
         # compares given equation with every other equation in the knowledge base to try and reduce
         def checkReduce(self,equation):
             canSubtract=False
             equationsToRemove=dequeue()
             equationsToAdd=dequeue()
+            equationsToSolve=dequeue()
             for otherEquation in self.equations:
                 canSubtract=False
                 for var in equation[0]:
@@ -251,13 +298,37 @@ class ImprovedKnowledgeBase():
                     newEquation = self.reductionEquation(otherEquation,equation)
                     equationsToRemove.push(otherEquation)
                     # checking if the new equation can be solved
-                    if self.solvedEquationDetector(newEquation):
+                    if self.canBeSolved(newEquation):
                         # this is solved we dont need to add it to our knowledge base
+                            # but we need to add it to a solved list
+                        equationsToSolve.push(newEquation)
                     else:
                         equationsToAdd.push(newEquation)
+            # initiating solve loop
+                #solve will substitute values and remove associated equations from our knowledge base
+            #ORDER MATTERS!!!!
+                # we are first removing redundant equations before possibly going into a solve->reduce loop
+                # we will add the newer equations before going into a solve->reduce loop
+                # then, we will initiate the solve->reduce loop, which will remove solved equations in substitution()
             for redundantEquations in equationsToRemove:
                 self.equations.remove(redundantEquations)
             for newerEquation in equationsToAdd:
                 self.equations.add(newerEquation)
+            for equations in equationsToSolve:
+                self.solvedEquationDetector(equations)
+
+
+        # returns True if equations is in solvable form, false otherwise
+        def canBeSolved(self,equation):
+            lhsSum = 0
+            for vars in equation[0]:
+                if equation[0][vars] > 0:
+                    lhsSum += equation[0][vars]
+            # if lhsSum == equation[1] (rhs), then this is solvable
+            if lhsSum==equation[1]:
+                return True
+            else:
+                return False
+
 
 
