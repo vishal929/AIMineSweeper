@@ -75,3 +75,9 @@ class Board():
                 else:
                     print(" 0 ",end="")
             print()
+
+# test
+#test = Board(10)
+#test.generateBoard(10)
+#test.printBoard()
+

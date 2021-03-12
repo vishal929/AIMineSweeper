@@ -1,6 +1,6 @@
 # if we cannot update our knowledge base at some point
         # we proceed with trying to obtain contradictions at unknown points
-
+from random import randint
 
 
 # rules
@@ -23,8 +23,8 @@ class ImprovedKnowledgeBase():
         def __init__(self,dim):
             self.dim=dim
             # hash values for knownValues
-            # mines (True)
-            # safeSquares (False)
+            # mines (False)
+            # safeSquares (True)
               # of mines given by clue, # safeSquares, # mines identified for sure around it
             self.knownValues={}
             # equations
@@ -56,40 +56,61 @@ class ImprovedKnowledgeBase():
         #1) if clue -  # revealed mines = # hidden neighbors
                 #then every hidden neighbor is a mine
         #  need to adapt this to knowledge base
-        def allMinesNearby(loc, self):
-            added = False
-            newMines = []
-            if (self.safeSquares[loc])[0] - (self.safeSquares[loc])[2] == (self.safeSquares[loc])[3]:
-                neighbors = LibraryFunctions.getValidNeighbors(loc)
-                for neighbor in neighbors:
-                    if neighbor not in self.safeSquares:
-                        self.knownMines.add(neighbor)
-                        newMines.append(neighbor)
-                        added = True
-            return added, newMines
+            # specifically, after adding this piece of data, we need to start substitution loop
+        # returns a list of mines found, list of safe squares found
+        def basicAgentLogic(self,loc):
+            # idea, just go through each free square and see if we can use basic logic to deduce stuff
+            newMinesFound=dequeue()
+            newSafesFound = dequeue()
 
-        #if number of safe neighbors (8-clue) - number of revealed safe =  # hidden neighbors
-            #then every hidden neighbor is safe
-        # need to adapt this to knowledge base
-        def allSafeNearby(loc, self, Board):
-            added = False
-            newSafe = []
-            if 8 - (self.safeSquares[loc])[0] - (self.safeSquares[loc])[1] == (self.safeSquares[loc])[3]:
-                neighbors = LibraryFunctions.getValidNeighbors(loc)
-                for neighbor in neighbors:
-                    if neighbor not in self.knownMines:
-                        numMinesClue = self.queryCellFromBoard(neighbor, Board)
-                        locData = self.getDataHelper(neighbor, numMinesClue)
-                        self.safeSquares[neighbor] = locData
-                        added = True
-                        newSafe.append(neighbor)
-            return added, newSafe
-
-        #idea as we add equations, we can compare them against the rest to see if reduction is possible
-        # if reduction is possible, we keep the smaller one along with the smaller result
-        def addEquation(self,equation):
-            # do reduction against every possibility in knowledge base
-            pass
+            for square in self.knownValues:
+                if self.knownValues[square]!=False:
+                    # then this is a square that is free with some clue information
+                    clue = self.knownValues[square][1]
+                    numMines = self.knownValues[square][3]
+                    numSafe = self.knownValues[square][2]
+                    neighbors=LibraryFunctions.getValidNeighbors(self.dim,square)
+                    if clue==len(neighbors)-numSafe:
+                        # then every hidden neighbor is a mine
+                        for neighbor in neighbors:
+                            if neighbor not in self.knownValues:
+                                # then this should be marked as a mine
+                                newMinesFound.push(neighbor)
+                                self.knownValues[vars] = False
+                                # need to update values of all neighbors
+                                deeperNeighbors = LibraryFunctions.getValidNeighbors(self.dim, neighbor)
+                                for space in deeperNeighbors:
+                                    if space in self.knownValues and self.knownValues[space] != False:
+                                        # neighbor is a free space with info
+                                        # updating number of known mines
+                                        self.knownValues[neighbors][3] += 1
+                    elif clue == numMines:
+                        # every other hidden neighbor is safe
+                        for neighbor in neighbors:
+                            if neighbor not in self.knownValues:
+                                # then this should be marked as safe and should be setup for query
+                                newSafesFound.push(neighbor)
+                                self.knownValues[vars] = True
+                                # need to update values of all neighbors
+                                deeperNeighbors = LibraryFunctions.getValidNeighbors(self.dim, neighbor)
+                                for space in deeperNeighbors:
+                                    if space in self.knownValues and self.knownValues[space] != False:
+                                        # neighbor is a free space with info
+                                        # updating number of safeSpaces
+                                        self.knownValues[neighbors][2] += 1
+            # now we need to do some operations with the new mines found and the new safe squares found
+            # firstly we substitute the values of the new mines found
+            '''
+            toSolve = dequeue()
+            for mines in newMinesFound:
+                toSolve+= self.substitution((mines,1))
+            for solvable in toSolve:
+                self.solvedEquationDetector(toSolve)
+            # then, we query the new safe squares found
+            for safes in newSafesFound:
+                self.queryCellFromBoard(safes,board)
+            '''
+            return newMinesFound,newSafesFound
 
         # THIS METHOD ASSUMES THERE IS A VALID CANCELLATION POSSIBLE
         # idea, we can just throw out the longer equation from the results
@@ -123,8 +144,10 @@ class ImprovedKnowledgeBase():
         # newDiscovery is a tuple (1/0, loc)
             # 1/0 indicates if mine or not
             # location is the (row,col) of discovered info about entry
+        # returns list of equations that can be solved (already removed from our knowledge base)
         def substitution(self,newDiscovery):
             # removing any solved equations
+            # we need to check for a certain special case
             removedList = dequeue()
             for equation in self.equations:
                 if newDiscovery[1] in equation[0]:
@@ -144,63 +167,46 @@ class ImprovedKnowledgeBase():
                     self.equations.remove(equation)
                 return removedList
 
+        # solves an equation detected by isSolvable method
+            # returns the values found in the form:
+            # returns a list of mines and a list of free spots found
+        def solvedEquationSolver(self,equation):
 
-
-        # simple helper to detect a solved equation (i.e of the form A=0, B=1)
-            #also need to consider cases like A+B=2, A-B=1 etc.
-            # if A+B=2, then A and B are both mines
-            # if A-B=1, then we know for sure that A is a mine and B is safe
-                # in general, if # of positive coefficients equals RHS, then every positive var is a mine
-                    # it follows everything else is a safe square
-        # returns true if equation is solved
-        def solvedEquationDetector(self,equation):
-            #getting sum of all positive coefficients on the lhs of equation
-
-            '''
-            lhsSum=0
-            for vars in equation[0]:
-                if equation[0][vars]>0:
-                    lhsSum += equation[0][vars]
-            if (equation[0].size()==1):
-                #return True
-                key =self.solvedEquationScalar(equation);
-                solvedInfo = (equation[1],key)
-                # removing equation from considered equations (we are separating equations from known squares)
-                #self.equations.remove(equation)
-                # based on if this is a mine or safe square we do different things
-                    # if mine
-                        # do not query, we put immediately into known mines
-                    # if not mine (safe square)
-                        # we query the board for this, compile clues/other info and then update our known info
-                if solvedInfo[0]==1:
-                    # this is a mine
-                    self.knownValues[key]=False
-                    solvedVariables.push((1,key))
-                else:
-                    # safe square
-                        # we can query and get other info and add it to known values
-                    solvedVariables.push((0,key))
-                    pass
-            elif equation[0].size()==lhsSum and lhsSum==equation[1]:
-            '''
-                # then we know that every positive variable is a mine
-                    # follows that every other variable is safe
             toQuery=dequeue()
             # solved variables are any variables solved of the form (1/0, loc) where 1 is a mine, 0 safe
             solvedVariables = dequeue()
+            foundMines=dequeue()
+            foundSafes=dequeue()
             for vars in equation[0]:
                 if equation[0][vars]>0:
                     # this is a mine
                     self.knownValues[vars]=False
-                    solvedVariables.push((1,vars))
+                    # need to update values of all neighbors
+                    neighbors = LibraryFunctions.getValidNeighbors(self.dim,vars)
+                    for neighbor in neighbors:
+                        if neighbor in self.knownValues and self.knownValues[neighbor]!=False:
+                            # neighbor is a free space with info
+                            # updating number of known mines
+                            self.knownValues[neighbors][3]+=1
+
+                    #solvedVariables.push((1,vars))
+                    foundMines.append(vars)
                 else:
                     # then this is safe
+                    # updating neighbors
+                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                    for neighbor in neighbors:
+                        if neighbor in self.knownValues and self.knownValues[neighbor] != False:
+                            # neighbor is a free space with info
+                            # updating number of known mines
+                            self.knownValues[neighbors][2] += 1
                     # we can query this and add to knowledge base
-                    toQuery.push(vars)
-                    solvedVariables.push((0,vars))
+                    #toQuery.push(vars)
+                    #solvedVariables.push((0,vars))
+                    foundSafes.append(vars)
                 # removing the equation from our equation set, as we extracted all info
                 #self.equations.remove(equation)
-
+            '''
             if solvedVariables :
                 # we found some new discoveries
                 # we can substitute that in our knowledge base
@@ -209,16 +215,20 @@ class ImprovedKnowledgeBase():
                     toSolve+= self.substitution(solved)
                 #now toRemove is a list of all equations to solve and then remove
                 #return toRemove
+                '''
             # now toQuery is a list of locations to query that are safe
             # toRemove is a list of equations to solve and then remove
                 #the equations in toSolve were already removed by substitution()
                     # we just need to solve them
 
             # we start with the query, then we solve again with the new list
+            '''
             for queriesToDo in toQuery:
                 self.queryCellFromBoard(queriesToDo,Board)
             for equations in toSolve:
                 self.solvedEquationDetector(equations)
+            '''
+            return foundMines,foundSafes
 
 
 
@@ -232,11 +242,24 @@ class ImprovedKnowledgeBase():
                     return key
 
         # helper to query cell from board and update our info about known squares
+            # queries initiate the substitute->reduce->solve->substitute loop
+        # returns loc,None if the square is a mine
+            # otherwise, returns loc,EQUATION if the square is free
+                # loc is (row,col) and EQUATION is the equation built from clue to add to knowledge base
         def queryCellFromBoard(self, loc,Board):
             numMinesClue = Board.queryPosition(loc)
             if numMinesClue == -1:
                 # then agent queried a mine
-                self.knownValues[loc]=False
+                # this is a mine
+                self.knownValues[vars] = False
+                # need to update values of all neighbors
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                for neighbor in neighbors:
+                    if neighbor in self.knownValues and self.knownValues[neighbor] != False:
+                        # neighbor is a free space with info
+                        # updating number of known mines
+                        self.knownValues[neighbors][3] += 1
+                '''
                 # substitution now that we know this is a mine
                 toSolve=self.substitution((1,loc))
                 # toSolve is a list of solvable equations obtained after substitution
@@ -244,7 +267,8 @@ class ImprovedKnowledgeBase():
                         #i.e we start a solve->substitution loop
                 for solved in toSolve:
                     self.solvedEquationDetector(solved)
-                return True, loc
+                '''
+                return loc, None
             else:
                 # this is safe, we can update our info and use the clue to generate an equation
                 #representation is F/T mine or not, #safeSquares around, # mines around for sure
@@ -267,10 +291,21 @@ class ImprovedKnowledgeBase():
                             #with coefficient of 1
                         equationLHS[neighbor]=1
                 # updating info about safe square
-                self.knownValues[loc]=True,numSafeSquares,numMines
+                self.knownValues[loc]=True,numMinesClue,numSafeSquares,numMines
+                # this is a free square
+                # need to update values of all neighbors
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                for neighbor in neighbors:
+                    if neighbor in self.knownValues and self.knownValues[neighbor] != False:
+                        # neighbor is a free space with info
+                        # updating number of known mines
+                        self.knownValues[neighbors][2] += 1
                 # updating info about the clue associated with query
                 newEquation = (equationLHS,equationRHS)
-                self.equations.add(newEquation)
+                #self.equations.add(newEquation)
+                return loc, newEquation
+
+                '''
                 # substitution now that we know this is a safe square
                 toSolve = self.substitution((0, loc))
                 # toSolve is a list of solved equations obtained after substitution
@@ -280,7 +315,13 @@ class ImprovedKnowledgeBase():
                 #checking if we can reduce anything in our knowledge base
                 self.checkReduce(newEquation)
                 return False, loc
+                '''
+
         # compares given equation with every other equation in the knowledge base to try and reduce
+            # reduces whatever it can
+            # removes the old equations from knowledge base after reduction (redundant)
+            # adds itself
+            # returns a list of all equations that are solvable at the end
         def checkReduce(self,equation):
             canSubtract=False
             equationsToRemove=dequeue()
@@ -304,6 +345,17 @@ class ImprovedKnowledgeBase():
                         equationsToSolve.push(newEquation)
                     else:
                         equationsToAdd.push(newEquation)
+            # adding reduction equation itself to the knowledgeBase
+            equationsToAdd.push(equation)
+            # removing all the old equations
+            for equations in equationsToRemove:
+                self.equations.remove(equations)
+            # adding all the new equations that arent solvable
+            for equations in equationsToAdd:
+                self.equations.add(equations)
+            # returning list of solvable equations for agent to handle in outer level
+            return equationsToSolve
+            '''
             # initiating solve loop
                 #solve will substitute values and remove associated equations from our knowledge base
             #ORDER MATTERS!!!!
@@ -316,6 +368,7 @@ class ImprovedKnowledgeBase():
                 self.equations.add(newerEquation)
             for equations in equationsToSolve:
                 self.solvedEquationDetector(equations)
+            '''
 
 
         # returns True if equations is in solvable form, false otherwise
@@ -329,6 +382,100 @@ class ImprovedKnowledgeBase():
                 return True
             else:
                 return False
+
+        # deciding which cell to query if we cannot proceed with reduction/substitution
+            # returns the cell to query
+            # idea, all possibly known safe cells have already been queried
+                # so we need to find a cell with low probability of being a mine
+                # naive idea: go through each cell that has been identified as free
+                    # go through each hidden neighbor
+                    # pick any hidden neighbor from cell with lowest (CLUE-minesIdentified)/numHiddenNeighbors
+        def probabilityCellToQuery(self):
+            #initial value to test is the middle of the board (in case our base is empty)
+            lowestProbLoc = (self.dim/2,self.dim/2)
+            lowestProb=1
+            for cells in self.knownValues:
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim,cells)
+                numHidden=0
+                numMines=0
+                hiddenNeighbor=None
+                for neighbor in neighbors:
+                    if neighbor not in self.knownValues:
+                        numHidden+=1
+                        hiddenNeighbor=neighbor
+                    elif self.knownValues[neighbor][0]==True:
+                        # then this neighbor is a mine
+                        numMines+=1
+                givenProbability =(self.knownValues[cells][1] - numMines)/numHidden
+                if ( givenProbability< lowestProb):
+                    # then we choose a neighbor from here
+                    lowestProbLoc=hiddenNeighbor
+                    lowestProb=givenProbability
+            # returning the next cell to query
+            return lowestProbLoc
+
+        # generates random cell to query
+            #versus our improved above method (although I think that is still naive)
+        def randomCellToQuery(self):
+
+            loc = (randint(0,self.dim),randint(0,self.dim))
+            # generating a location that is not known in our knowledge base
+            while (loc in self.knownValues):
+                loc=(randint(0,self.dim),randint(0,self.dim))
+            return loc
+
+        # method to support user entering clues and knowledge base adapting from there
+            # clue is of the form (loc,numMines)
+                # if numMines ==-1 , then the location user queried is a mine
+        # return value is of the form loc,equation
+            # if user gave a mine, equation is None
+        # this will facilitate the loop after this step
+        def feedFromUser(self,clue):
+            # basically just updating what the user sent in
+            if clue[1]==-1:
+                # user queried a mine
+                self.knownValues[clue[0]]=False
+                # updating neighbors
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim,clue[0])
+                for neighbor in neighbors:
+                    if neighbor in self.knownValues:
+                        # updating results in neighbor
+                        self.knownValues[neighbor][3]+=1
+                return clue[0],None
+            else:
+                # user queried a free space
+                # updating neighbors
+                newEquationDict={}
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim, clue[0])
+                numMines=0
+                numSafe=0
+                for neighbor in neighbors:
+                    if neighbor in self.knownValues:
+                        # updating results in neighbor
+                        if self.knownValues[neighbor]!=False:
+                            #updating safe square count around safe squares
+                            newEquationDict[0][neighbor]=1
+                            numSafe+=1
+                            self.knownValues[neighbor][2] += 1
+                        else:
+                            # this neighbor is a mine
+                            newEquationDict[0][neighbor]=1
+                            numMines+=1
+                self.knownValues[clue[0]]=True,clue[1],numSafe,numMines
+                # creating equation for user
+                    #lhs are the locations and coefficients in dictionary
+                    #rhs is the clue value
+                newEquation = newEquationDict,clue[1]
+                return clue[0],newEquation
+
+
+
+
+
+
+
+
+
 
 
 
