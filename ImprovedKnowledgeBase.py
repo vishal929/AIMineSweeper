@@ -1,7 +1,7 @@
 # if we cannot update our knowledge base at some point
         # we proceed with trying to obtain contradictions at unknown points
 from random import randint
-
+from collections import deque
 
 # rules
 '''
@@ -60,8 +60,8 @@ class ImprovedKnowledgeBase():
         # returns a list of mines found, list of safe squares found
         def basicAgentLogic(self,loc):
             # idea, just go through each free square and see if we can use basic logic to deduce stuff
-            newMinesFound=dequeue()
-            newSafesFound = dequeue()
+            newMinesFound=deque()
+            newSafesFound = deque()
 
             for square in self.knownValues:
                 if self.knownValues[square]!=False:
@@ -101,7 +101,7 @@ class ImprovedKnowledgeBase():
             # now we need to do some operations with the new mines found and the new safe squares found
             # firstly we substitute the values of the new mines found
             '''
-            toSolve = dequeue()
+            toSolve = deque()
             for mines in newMinesFound:
                 toSolve+= self.substitution((mines,1))
             for solvable in toSolve:
@@ -148,7 +148,7 @@ class ImprovedKnowledgeBase():
         def substitution(self,newDiscovery):
             # removing any solved equations
             # we need to check for a certain special case
-            removedList = dequeue()
+            removedList = deque()
             for equation in self.equations:
                 if newDiscovery[1] in equation[0]:
                     # modification is the new value on LHS based on discovered value of this entry
@@ -172,12 +172,28 @@ class ImprovedKnowledgeBase():
             # returns a list of mines and a list of free spots found
         def solvedEquationSolver(self,equation):
 
-            toQuery=dequeue()
+            toQuery=deque()
             # solved variables are any variables solved of the form (1/0, loc) where 1 is a mine, 0 safe
-            solvedVariables = dequeue()
-            foundMines=dequeue()
-            foundSafes=dequeue()
+            solvedVariables = deque()
+            foundMines=deque()
+            foundSafes=deque()
             for vars in equation[0]:
+                # logic for if rhs is zero and all coefficients are same sign (all are free)
+                if equation[1]==0:
+                    # then this is safe
+                    # updating neighbors
+                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                    for neighbor in neighbors:
+                        if neighbor in self.knownValues and self.knownValues[neighbor] != False:
+                            # neighbor is a free space with info
+                            # updating number of known mines
+                            self.knownValues[neighbors][2] += 1
+                    # we can query this and add to knowledge base
+                    # toQuery.push(vars)
+                    # solvedVariables.push((0,vars))
+                    foundSafes.append(vars)
+                    continue
+                # logic for if all positive terms on lhs equals rhs (positive terms are mines), everything else is free
                 if equation[0][vars]>0:
                     # this is a mine
                     self.knownValues[vars]=False
@@ -210,7 +226,7 @@ class ImprovedKnowledgeBase():
             if solvedVariables :
                 # we found some new discoveries
                 # we can substitute that in our knowledge base
-                toSolve=dequeue()
+                toSolve=deque()
                 for solved in solvedVariables:
                     toSolve+= self.substitution(solved)
                 #now toRemove is a list of all equations to solve and then remove
@@ -322,11 +338,20 @@ class ImprovedKnowledgeBase():
             # removes the old equations from knowledge base after reduction (redundant)
             # adds itself
             # returns a list of all equations that are solvable at the end
+                # NEED TO ACCOUNT FOR SPECIAL CASE:
+                    # if the equation given is solvable, we can just return it
+                    # this is because solvable equations will be substituted back into knowledge base anyway
         def checkReduce(self,equation):
-            canSubtract=False
-            equationsToRemove=dequeue()
-            equationsToAdd=dequeue()
-            equationsToSolve=dequeue()
+
+            equationsToRemove=deque()
+            equationsToAdd=deque()
+            equationsToSolve=deque()
+
+            # if the equation generated from the clue can be immediately solved, then we can just return it instead of
+                # going through every equation in the equation base and comparing them
+            if self.canBeSolved(equation):
+                equationsToSolve.append(equation)
+                return equationsToSolve
             for otherEquation in self.equations:
                 canSubtract=False
                 for var in equation[0]:
@@ -337,16 +362,16 @@ class ImprovedKnowledgeBase():
                 #subtracting from other equation
                 if canSubtract:
                     newEquation = self.reductionEquation(otherEquation,equation)
-                    equationsToRemove.push(otherEquation)
+                    equationsToRemove.append(otherEquation)
                     # checking if the new equation can be solved
                     if self.canBeSolved(newEquation):
                         # this is solved we dont need to add it to our knowledge base
                             # but we need to add it to a solved list
-                        equationsToSolve.push(newEquation)
+                        equationsToSolve.append(newEquation)
                     else:
-                        equationsToAdd.push(newEquation)
+                        equationsToAdd.append(newEquation)
             # adding reduction equation itself to the knowledgeBase
-            equationsToAdd.push(equation)
+            equationsToAdd.append(equation)
             # removing all the old equations
             for equations in equationsToRemove:
                 self.equations.remove(equations)
@@ -372,13 +397,23 @@ class ImprovedKnowledgeBase():
 
 
         # returns True if equations is in solvable form, false otherwise
+            # Solvable Forms
+                # If sum of positive coefficients equals RHS, then every positive coefficient term is a mine, others are free
+                    #i.e A+B-C-D = 2 --> A and B are mines, C and D are safe
+                # If rhs is zero and every coefficient is same sign, then every term is free
         def canBeSolved(self,equation):
             lhsSum = 0
+            allPositive = True
             for vars in equation[0]:
                 if equation[0][vars] > 0:
                     lhsSum += equation[0][vars]
+                else:
+                    allPositive=False
             # if lhsSum == equation[1] (rhs), then this is solvable
             if lhsSum==equation[1]:
+                return True
+            elif allPositive and equation[1]==0:
+                # if rhs is 0 and every lhs term is positive, then every term in the equation represents a free square
                 return True
             else:
                 return False

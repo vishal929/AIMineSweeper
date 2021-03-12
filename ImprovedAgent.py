@@ -4,25 +4,55 @@ from collections import deque
 
 # this agent is a driver for our improved knowledge base
 
-
-def improvedSolveBoard(board,improvedKnowledge):
+# board is the given board to solve
+    # improvedKnowledge is our improved Knowledge base object
+    # selectionFunction is a method function of improved knowledge that represents our selection algorithm
+            # for the case when no safe squares can be found to query (we have to query something uncertain at this point)
+def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
     while (True):
-        if (improvedKnowledge.knownValues.size() == board.dim):
+        if (improvedKnowledge.knownValues.size() == board.dim**2):
             # then we solved the board, we can break
                 # then the board can print out the output or something
+            print("Board is solved!")
             break
         else:
             # then we can guess a square
                 # this will lead to a query --> reduce --> solve --> substitute loop
-            toQuery = improvedKnowledge.cellToQuery()
+            toQuery = selectionFunction(improvedKnowledge)
             # actually querying the square
+            print("Querying location: "+str(toQuery))
             result = improvedKnowledge.queryCellFromBoard(board,toQuery)
+            # starting substitution -> solve ->substitution loop with new value of square
             if result[1] is None:
                 # then the agent queried a mine
-                print("OH NO! We queried a mine!")
+                print("OH NO! We queried a mine at location "+str(toQuery))
+                # substituting mine value
+                toSolve = improvedKnowledge.substitution((1, result[0]))
             else:
                 # then the agent queried a safe spot
-                pass
+                print("Queried a safe spot at location"+str(toQuery)+" with equation"+str(result[1]))
+                # substituting safe value
+                toSolve = improvedKnowledge.substitution((0, result[0]))
+                # reducing equation and adding return value to deque of equations to solve
+                toSolve+= improvedKnowledge.checkReduce(result[1])
+            # toSolve is a dequeue of equations that were removed from our knowledge base already that are in solvable state
+                # we just need to solve them, substitute, add to the end of the dequeue and repeat
+            for solvable in toSolve:
+                # solving equations
+                    # equation solver returns list of discovered mines, and list of discovered free spots from solving the equation
+                discoveredMines, discoveredFree =improvedKnowledge.solvedEquationSolver(solvable)
+                # first we substitute the discovered mines and add any solvable equations to toSolve
+                for newMines in discoveredMines:
+                    toSolve+=improvedKnowledge.substitution((1,newMines))
+                # now, we query each free spot, build an equation based on the clue,
+                    # and add the equation to our knowledge base after reducing it with every equation
+                for newSafe in discoveredFree:
+                    # getting equation from clue from query
+                    loc,equation = improvedKnowledge.queryCellFromBoard(newSafe,board)
+                    # starting reduction of equation with knowledge base
+                        #checkReduce reduces this equation after comparison with every other equation
+                            # it returns a deque of equations that are solvable after reduction
+                    toSolve+=improvedKnowledge.checkReduce(equation)
 
 # idea of this method is for the user to feed our knowledge base clues and then the knowledge base will
     # respond with known mines, known safe spots, and the recommended cell to query
@@ -30,7 +60,10 @@ def improvedSolveBoard(board,improvedKnowledge):
     # clue is of the form (loc,numMines) input by user
         # if numMines =-1, then loc was queried as a mine by the user
         # user starts this with None to get an initial recommendation
-def improvedSolveBoardFeed(improvedKnowledge,clue):
+    # selection function is the function we use to select squares to query if no further safe squares can be found
+        # either random, probabilistic or something else
+        # so selectionFunction is a FUNCTION OBJECT/Pointer
+def improvedSolveBoardFeed(improvedKnowledge,clue,selectionFunction):
     if clue is None:
         # then the user just started
         # we recommend the user to pick the middle of the board to query
@@ -76,7 +109,9 @@ def improvedSolveBoardFeed(improvedKnowledge,clue):
                 if not foundSafes:
                     # then we did not find any safe squares
                     # we can pick randomly here or use probabilistic picking
-                    pass
+                    # calling our selection function (input as an argument)
+                    toQuery = selectionFunction(improvedKnowledge)
+                    return foundMines,None,toQuery
                 return foundMines,foundSafes,foundSafes[0]
             else:
                 # then user queried a safe cell and we have an equation to use
@@ -118,10 +153,11 @@ def improvedSolveBoardFeed(improvedKnowledge,clue):
                     # we return the list of mines found, safe squares found that the user can query
                         #last return item is the location that is recommended to query (first location from foundSafes)
                 if not foundSafes:
-                    # then we did not find any safe squares that the user can query
-                        # we will refer to a selection algorithm to provide the user with some square to query
-                        # either random, probabilistic, etc.
-                    pass
+                    # then we did not find any safe squares
+                    # we can pick randomly here or use probabilistic picking
+                    # calling our selection function (input as an argument)
+                    toQuery = selectionFunction(improvedKnowledge)
+                    return foundMines, None, toQuery
                 return foundMines,foundSafes,foundSafes[0]
 
 
