@@ -1,6 +1,6 @@
 import ImprovedKnowledgeBase
 from random import randint
-
+from collections import deque
 
 # this agent is a driver for our improved knowledge base
 
@@ -22,6 +22,7 @@ def improvedSolveBoard(board,improvedKnowledge):
                 print("OH NO! We queried a mine!")
             else:
                 # then the agent queried a safe spot
+                pass
 
 # idea of this method is for the user to feed our knowledge base clues and then the knowledge base will
     # respond with known mines, known safe spots, and the recommended cell to query
@@ -56,9 +57,9 @@ def improvedSolveBoardFeed(improvedKnowledge,clue):
             if result[1] is None:
                 # then this was a mine, we can go to substitution
                 toSolve = improvedKnowledge.substitution((1,result[0]))
-                foundMines=dequeue()
-                foundSafes=dequeue()
-                # to solve is a dequeue of solvable equations
+                foundMines=deque()
+                foundSafes=deque()
+                # to solve is a deque of solvable equations
                     #(already removed from list of equations in knowledge base)
                 for solvable in toSolve:
                     result = improvedKnowledge.solvedEquationSolver(solvable)
@@ -72,9 +73,56 @@ def improvedSolveBoardFeed(improvedKnowledge,clue):
                     # we can display them to the user
                     # then user must choose to input a clue from the list of free mines
                 # we will always recommend user to query the first square on the safe list
+                if not foundSafes:
+                    # then we did not find any safe squares
+                    # we can pick randomly here or use probabilistic picking
+                    pass
                 return foundMines,foundSafes,foundSafes[0]
             else:
-                pass
+                # then user queried a safe cell and we have an equation to use
+                    # idea, first we substitute the known value of the safe cell
+                    # then, we go into reduce equation -> solve equation -> substitute loop
+                    # once we cannot do anything more, we have a list of found mines and found safe squares
+                        # for the user to pick from and query
+                        # just like in the last branch, we will recommend user to query the first square in the list of
+                        # found safe squares
+                toSolve = improvedKnowledge.substitution((0, result[0]))
+                foundMines = deque()
+                foundSafes = deque()
+                # to solve is a deque of solvable equations
+                # (already removed from list of equations in knowledge base)
+                for solvable in toSolve:
+                    output = improvedKnowledge.solvedEquationSolver(solvable)
+                    for mines in output[0]:
+                        toSolve += improvedKnowledge.substitution((1, mines))
+                        foundMines.append(mines)
+                    for safes in output[1]:
+                        toSolve += improvedKnowledge.substitution((0, safes))
+                        foundSafes.append(safes)
+                # above concludes the substitution -> solve loop
+                # now we will initiate the equation -> reduce ->solve -> substitute -> solve ->substitute ... loop
+                # below method call will compare the new equation with every equation in our knowledge base
+                    # will also reduce if it finds some overlap and it throws out the old equation (because it is redundant)
+                    # now toSolve is redefined to be a deque of solvable equations
+                        # from here, we can just mimic the reduce solve loop again
+                toSolve = improvedKnowledge.checkReduce(result[1])
+                for solvable in toSolve:
+                    output = improvedKnowledge.solvedEquationSolver(solvable)
+                    for mines in output[0]:
+                        toSolve += improvedKnowledge.substitution((1, mines))
+                        foundMines.append(mines)
+                    for safes in output[1]:
+                        toSolve += improvedKnowledge.substitution((0, safes))
+                        foundSafes.append(safes)
+                # now we have the full list of mines and safesquares
+                    # we return the list of mines found, safe squares found that the user can query
+                        #last return item is the location that is recommended to query (first location from foundSafes)
+                if not foundSafes:
+                    # then we did not find any safe squares that the user can query
+                        # we will refer to a selection algorithm to provide the user with some square to query
+                        # either random, probabilistic, etc.
+                    pass
+                return foundMines,foundSafes,foundSafes[0]
 
 
 
