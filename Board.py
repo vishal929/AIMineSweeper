@@ -80,4 +80,5 @@ class Board():
 #test = Board(10)
 #test.generateBoard(10)
 #test.printBoard()
+#print(test.numTriggers)
 

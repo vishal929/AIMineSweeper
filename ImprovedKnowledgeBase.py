@@ -29,7 +29,7 @@ class ImprovedKnowledgeBase():
             self.knownValues={}
             # equations
             # each equation is (location is key, val is coefficient {},RHS value)
-            self.equations=set()
+            self.equations=deque()
 
         #TODO:
             #we should only call reduce if we find equations with overlapping elements
@@ -75,8 +75,8 @@ class ImprovedKnowledgeBase():
                         for neighbor in neighbors:
                             if neighbor not in self.knownValues:
                                 # then this should be marked as a mine
-                                newMinesFound.push(neighbor)
-                                self.knownValues[vars] = False
+                                newMinesFound.append(neighbor)
+                                self.knownValues[neighbor] = False
                                 # need to update values of all neighbors
                                 deeperNeighbors = LibraryFunctions.getValidNeighbors(self.dim, neighbor)
                                 for space in deeperNeighbors:
@@ -89,8 +89,8 @@ class ImprovedKnowledgeBase():
                         for neighbor in neighbors:
                             if neighbor not in self.knownValues:
                                 # then this should be marked as safe and should be setup for query
-                                newSafesFound.push(neighbor)
-                                self.knownValues[vars] = True
+                                newSafesFound.append(neighbor)
+                                self.knownValues[neighbor] = True
                                 # need to update values of all neighbors
                                 deeperNeighbors = LibraryFunctions.getValidNeighbors(self.dim, neighbor)
                                 for space in deeperNeighbors:
@@ -99,17 +99,7 @@ class ImprovedKnowledgeBase():
                                         # updating number of safeSpaces
                                         self.knownValues[neighbors][2] += 1
             # now we need to do some operations with the new mines found and the new safe squares found
-            # firstly we substitute the values of the new mines found
-            '''
-            toSolve = deque()
-            for mines in newMinesFound:
-                toSolve+= self.substitution((mines,1))
-            for solvable in toSolve:
-                self.solvedEquationDetector(toSolve)
-            # then, we query the new safe squares found
-            for safes in newSafesFound:
-                self.queryCellFromBoard(safes,board)
-            '''
+            # returning the new mines found and the new safe squares found
             return newMinesFound,newSafesFound
 
         # THIS METHOD ASSUMES THERE IS A VALID CANCELLATION POSSIBLE
@@ -125,7 +115,6 @@ class ImprovedKnowledgeBase():
                 larger=firstEquation
                 smaller=secondEquation
             # actual subtraction
-            newRHS=0
             newEquationDict = {}
             # updating based on larger equation
             for val in larger[0]:
@@ -136,9 +125,13 @@ class ImprovedKnowledgeBase():
             for val in smaller[0]:
                 if val in newEquationDict:
                     newEquationDict[val]=newEquationDict[val]-smaller[0][val]
+                    if newEquationDict[val]==0:
+                        # we need to remove this
+                        del newEquationDict[val]
                 else:
-                    newEquationDict[val]=smaller[0][val]
+                    newEquationDict[val]= -smaller[0][val]
             newRHS -= smaller[1]
+            # need to convert to frozen set for actual use
             return newEquationDict,newRHS
 
         # newDiscovery is a tuple (1/0, loc)
@@ -148,102 +141,121 @@ class ImprovedKnowledgeBase():
         def substitution(self,newDiscovery):
             # removing any solved equations
             # we need to check for a certain special case
+                # we need to check if this value is already known, then we can skip
             removedList = deque()
+            solvedList = deque()
+            reducedList = deque()
+            if newDiscovery[1] in self.knownValues:
+                # then we do not substitute
+                return solvedList
             for equation in self.equations:
                 if newDiscovery[1] in equation[0]:
+                    lhs = equation[0]
+                    rhs = equation[1]
                     # modification is the new value on LHS based on discovered value of this entry
                     # getting coefficient
-                    modification = equation[0][newDiscovery[1]]
+                    #modification = equation[0][newDiscovery[1]]
+                    modification = lhs[newDiscovery[1]]
                     # multiplying coefficient with known value
                     modification*=newDiscovery[0]
                     # subtracting from rhs
-                    equation[1]-=modification
+                    #equation[1]-=modification
+                    rhs-=modification
                     # removing variable from our equation after substitution
-                    equation[0].pop(newDiscovery[1])
+                    #equation[0].pop(newDiscovery[1])
+                    del lhs[newDiscovery[1]]
+                    reducedEquation = (lhs,rhs)
+                    if self.canBeSolved(reducedEquation):
+                        # we want to return solved list in the end and remove the associated
+                            # old versions of the solvable equations from our knowledge base
+                        solvedList.append(reducedEquation)
+                        removedList.append(equation)
+                    else:
+                        # in this case, the reduced equation is not solvable
+                            # we want to update the old equation in KB with the reduced version
+                        reducedList.append(reducedEquation)
+                        removedList.append(equation)
                 # if the equation is now in solvable state after substitution, then we can update it and remove
-                if self.canBeSolved(equation):
-                    removedList.push(equation)
-                    # removing it from our actual knowledge base
-                    self.equations.remove(equation)
-                return removedList
+                #if self.canBeSolved(equation):
+                    #removedList.append(equation)
+            # removing it from our actual knowledge base
+            for equation in removedList:
+                self.equations.remove(equation)
+            for equation in reducedList:
+                # adding in reduced equations that arent solvable
+                self.equations.append(equation)
+            return solvedList
 
         # solves an equation detected by isSolvable method
             # returns the values found in the form:
             # returns a list of mines and a list of free spots found
         def solvedEquationSolver(self,equation):
 
-            toQuery=deque()
             # solved variables are any variables solved of the form (1/0, loc) where 1 is a mine, 0 safe
-            solvedVariables = deque()
             foundMines=deque()
             foundSafes=deque()
-            for vars in equation[0]:
+            for ourVar in equation[0]:
                 # logic for if rhs is zero and all coefficients are same sign (all are free)
-                if equation[1]==0:
+                if equation[1] == 0:
                     # then this is safe
                     # updating neighbors
-                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, ourVar)
                     for neighbor in neighbors:
                         if neighbor in self.knownValues and self.knownValues[neighbor] != False:
                             # neighbor is a free space with info
                             # updating number of known mines
-                            self.knownValues[neighbors][2] += 1
+                            #self.knownValues[neighbor][2] += 1
+                            self.knownValues[neighbor] = \
+                                self.knownValues[neighbor][0], self.knownValues[neighbor][1], \
+                                self.knownValues[neighbor][2] +1, self.knownValues[neighbor][3]
                     # we can query this and add to knowledge base
-                    # toQuery.push(vars)
-                    # solvedVariables.push((0,vars))
-                    foundSafes.append(vars)
+                    # toQuery.push(ourVar)
+                    # solvedVariables.push((0,ourVar))
+                    foundSafes.append(ourVar)
                     continue
                 # logic for if all positive terms on lhs equals rhs (positive terms are mines), everything else is free
-                if equation[0][vars]>0:
+                if equation[0][ourVar] > 0:
                     # this is a mine
-                    self.knownValues[vars]=False
+                    self.knownValues[ourVar]=False
                     # need to update values of all neighbors
-                    neighbors = LibraryFunctions.getValidNeighbors(self.dim,vars)
+                    neighbors = LibraryFunctions.getValidNeighbors(self.dim,ourVar)
                     for neighbor in neighbors:
                         if neighbor in self.knownValues and self.knownValues[neighbor]!=False:
                             # neighbor is a free space with info
                             # updating number of known mines
-                            self.knownValues[neighbors][3]+=1
+                            #self.knownValues[neighbors][3]+=1
+                            self.knownValues[neighbor] = \
+                                self.knownValues[neighbor][0], self.knownValues[neighbor][1], \
+                                self.knownValues[neighbor][2], self.knownValues[neighbor][3]+1
 
-                    #solvedVariables.push((1,vars))
-                    foundMines.append(vars)
+                    #solvedVariables.push((1,ourVar))
+                    foundMines.append(ourVar)
                 else:
                     # then this is safe
                     # updating neighbors
-                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, ourVar)
                     for neighbor in neighbors:
                         if neighbor in self.knownValues and self.knownValues[neighbor] != False:
                             # neighbor is a free space with info
                             # updating number of known mines
-                            self.knownValues[neighbors][2] += 1
+                            #self.knownValues[neighbors][2] += 1
+                            self.knownValues[neighbor] = \
+                                self.knownValues[neighbor][0], self.knownValues[neighbor][1], \
+                                self.knownValues[neighbor][2] + 1, self.knownValues[neighbor][3]
                     # we can query this and add to knowledge base
-                    #toQuery.push(vars)
-                    #solvedVariables.push((0,vars))
-                    foundSafes.append(vars)
+                    #toQuery.push(ourVar)
+                    #solvedVariables.push((0,ourVar))
+                    foundSafes.append(ourVar)
                 # removing the equation from our equation set, as we extracted all info
                 #self.equations.remove(equation)
-            '''
-            if solvedVariables :
-                # we found some new discoveries
-                # we can substitute that in our knowledge base
-                toSolve=deque()
-                for solved in solvedVariables:
-                    toSolve+= self.substitution(solved)
-                #now toRemove is a list of all equations to solve and then remove
-                #return toRemove
-                '''
+
             # now toQuery is a list of locations to query that are safe
             # toRemove is a list of equations to solve and then remove
                 #the equations in toSolve were already removed by substitution()
                     # we just need to solve them
 
             # we start with the query, then we solve again with the new list
-            '''
-            for queriesToDo in toQuery:
-                self.queryCellFromBoard(queriesToDo,Board)
-            for equations in toSolve:
-                self.solvedEquationDetector(equations)
-            '''
+
             return foundMines,foundSafes
 
 
@@ -267,23 +279,17 @@ class ImprovedKnowledgeBase():
             if numMinesClue == -1:
                 # then agent queried a mine
                 # this is a mine
-                self.knownValues[vars] = False
+                self.knownValues[loc] = False
                 # need to update values of all neighbors
-                neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim,loc)
                 for neighbor in neighbors:
                     if neighbor in self.knownValues and self.knownValues[neighbor] != False:
                         # neighbor is a free space with info
                         # updating number of known mines
-                        self.knownValues[neighbors][3] += 1
-                '''
-                # substitution now that we know this is a mine
-                toSolve=self.substitution((1,loc))
-                # toSolve is a list of solvable equations obtained after substitution
-                    # they are already removed from our knowledge base, we just need to extract the data
-                        #i.e we start a solve->substitution loop
-                for solved in toSolve:
-                    self.solvedEquationDetector(solved)
-                '''
+                        #self.knownValues[neighbors][3] += 1
+                        self.knownValues[neighbor] = \
+                            self.knownValues[neighbor][0], self.knownValues[neighbor][1], self.knownValues[neighbor][2], self.knownValues[neighbor][3]+1
+
                 return loc, None
             else:
                 # this is safe, we can update our info and use the clue to generate an equation
@@ -291,7 +297,7 @@ class ImprovedKnowledgeBase():
 
                 equationLHS = {}
                 equationRHS=numMinesClue
-                neighbors = LibraryFunctions.getValidNeighbors(loc,self.dim)
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim,loc)
                 numSafeSquares=0
                 numMines=0
                 for neighbor in neighbors:
@@ -301,7 +307,9 @@ class ImprovedKnowledgeBase():
                             numSafeSquares+=1
                         else:
                             # this is a mine
+                                # this decrements from the mine clue as well
                             numMines+=1
+                            equationRHS-=1
                     else:
                         # then this is part of a generated equation with the clue
                             #with coefficient of 1
@@ -310,28 +318,20 @@ class ImprovedKnowledgeBase():
                 self.knownValues[loc]=True,numMinesClue,numSafeSquares,numMines
                 # this is a free square
                 # need to update values of all neighbors
-                neighbors = LibraryFunctions.getValidNeighbors(self.dim, vars)
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim, loc)
                 for neighbor in neighbors:
                     if neighbor in self.knownValues and self.knownValues[neighbor] != False:
                         # neighbor is a free space with info
                         # updating number of known mines
-                        self.knownValues[neighbors][2] += 1
+                        #self.knownValues[neighbor][2] += 1
+                        self.knownValues[neighbor] = \
+                            self.knownValues[neighbor][0],self.knownValues[neighbor][1],self.knownValues[neighbor][2]+1,self.knownValues[neighbor][3]
                 # updating info about the clue associated with query
-                newEquation = (equationLHS,equationRHS)
+                newEquation = equationLHS,equationRHS
                 #self.equations.add(newEquation)
                 return loc, newEquation
 
-                '''
-                # substitution now that we know this is a safe square
-                toSolve = self.substitution((0, loc))
-                # toSolve is a list of solved equations obtained after substitution
-                # we will initiate the solve process here before going into a reduce->solve->substitute loop below with the clue
-                for solved in toSolve:
-                    self.solvedEquationDetector(solved)
-                #checking if we can reduce anything in our knowledge base
-                self.checkReduce(newEquation)
-                return False, loc
-                '''
+
 
         # compares given equation with every other equation in the knowledge base to try and reduce
             # reduces whatever it can
@@ -346,10 +346,14 @@ class ImprovedKnowledgeBase():
             equationsToRemove=deque()
             equationsToAdd=deque()
             equationsToSolve=deque()
-
+            # checking if the equation is empty, if so, we can return nothing
+            if not equation[0]:
+                # then the dictionary of coefficients is emtpy, which means nothing
+                return equationsToSolve
             # if the equation generated from the clue can be immediately solved, then we can just return it instead of
                 # going through every equation in the equation base and comparing them
             if self.canBeSolved(equation):
+                #print(equation)
                 equationsToSolve.append(equation)
                 return equationsToSolve
             for otherEquation in self.equations:
@@ -377,42 +381,39 @@ class ImprovedKnowledgeBase():
                 self.equations.remove(equations)
             # adding all the new equations that arent solvable
             for equations in equationsToAdd:
-                self.equations.add(equations)
+                self.equations.append(equations)
             # returning list of solvable equations for agent to handle in outer level
             return equationsToSolve
-            '''
-            # initiating solve loop
-                #solve will substitute values and remove associated equations from our knowledge base
-            #ORDER MATTERS!!!!
-                # we are first removing redundant equations before possibly going into a solve->reduce loop
-                # we will add the newer equations before going into a solve->reduce loop
-                # then, we will initiate the solve->reduce loop, which will remove solved equations in substitution()
-            for redundantEquations in equationsToRemove:
-                self.equations.remove(redundantEquations)
-            for newerEquation in equationsToAdd:
-                self.equations.add(newerEquation)
-            for equations in equationsToSolve:
-                self.solvedEquationDetector(equations)
-            '''
+
 
 
         # returns True if equations is in solvable form, false otherwise
             # Solvable Forms
                 # If sum of positive coefficients equals RHS, then every positive coefficient term is a mine, others are free
                     #i.e A+B-C-D = 2 --> A and B are mines, C and D are safe
+                    # C+D-A-B = -2 --> A and B are mines (need to scale negative equations)
                 # If rhs is zero and every coefficient is same sign, then every term is free
         def canBeSolved(self,equation):
             lhsSum = 0
-            allPositive = True
-            for vars in equation[0]:
-                if equation[0][vars] > 0:
-                    lhsSum += equation[0][vars]
+            lastSign=None
+            allSame = True
+            #print("checking if equation can be solved: "+str(equation))
+            for ourVar in equation[0]:
+                if equation[0][ourVar] > 0:
+                    lhsSum += equation[0][ourVar]
+                    if lastSign is None:
+                        lastSign='+'
+                    elif lastSign=='-':
+                        allSame=False
                 else:
-                    allPositive=False
+                    if lastSign is None:
+                        lastSign='-'
+                    elif lastSign=='+':
+                        allSame=False
             # if lhsSum == equation[1] (rhs), then this is solvable
             if lhsSum==equation[1]:
                 return True
-            elif allPositive and equation[1]==0:
+            elif allSame and equation[1]==0:
                 # if rhs is 0 and every lhs term is positive, then every term in the equation represents a free square
                 return True
             else:
@@ -503,6 +504,17 @@ class ImprovedKnowledgeBase():
                 newEquation = newEquationDict,clue[1]
                 return clue[0],newEquation
 
+        # debugging print that prints the knowledge base so far and the equations inside it
+        def printKnowledgeBase(self):
+            print("printing known values:")
+            for value in self.knownValues:
+                print("location:"+str(value)+" info : "+str(self.knownValues[value]))
+            print("---------------")
+            print("---------------")
+            print("---------------")
+            print("Printing equations:")
+            for equation in self.equations:
+                print(equation)
 
 
 
