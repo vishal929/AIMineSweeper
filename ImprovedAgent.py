@@ -17,7 +17,6 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
             print("num mines triggered:"+str(board.numTriggers))
             break
         else:
-            print("guessing square")
             # then we can guess a square
                 # this will lead to a query --> reduce --> solve --> substitute loop
             toQuery = selectionFunction(improvedKnowledge)
@@ -62,8 +61,8 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
             reduceLoop(improvedKnowledge,toSolve)
             while toSolve:
                 # while we still have equations to solve, we pop one at a time
-                print("popping solvable equation")
                 equationToSolve = toSolve.pop()
+                print("popped equation:"+str(equationToSolve))
                 # solving equations
                 # equation solver returns list of discovered mines, and list of discovered free spots from solving the equation
                 discoveredMines, discoveredFree = improvedKnowledge.solvedEquationSolver(equationToSolve)

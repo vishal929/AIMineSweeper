@@ -15,6 +15,7 @@ from collections import deque
         if nothing, then try and use probability to pick a hidden square to query
 '''
 
+
 # representation
 import LibraryFunctions
 
@@ -134,7 +135,6 @@ class ImprovedKnowledgeBase():
             # location is the (row,col) of discovered info about entry
         # returns list of equations that can be solved (already removed from our knowledge base)
         def substitution(self,newDiscovery):
-            print("starting substitution")
             # removing any solved equations
             # we need to check for a certain special case
                 # we need to check if this value is already known, then we can skip
@@ -159,6 +159,11 @@ class ImprovedKnowledgeBase():
                     #equation[0].pop(newDiscovery[1])
                     #lhs.pop(newDiscovery[1])
                     del lhs[(newDiscovery[1])]
+                    # accounting for RHS being negative
+                    if rhs<0:
+                        for coefficients in lhs:
+                            lhs[coefficients]=-lhs[coefficients]
+                        rhs=-rhs
                     reducedEquation = (lhs,rhs)
                     if self.canBeSolved(reducedEquation):
                         # we want to return solved list in the end and remove the associated
@@ -179,7 +184,6 @@ class ImprovedKnowledgeBase():
             for reducable in reducedList:
                 # adding in reduced equations that arent solvable
                 self.equations.append(reducable)
-            print("ending substitution")
             return solvedList
 
         # solves an equation detected by isSolvable method
@@ -410,7 +414,6 @@ class ImprovedKnowledgeBase():
 
         # wrapper where we pass reduce after adding the given equation
         def addReduce(self,equation):
-            print(self.equations)
             toSolve = deque()
             #if equation is not None and equation[0]:
             self.equations.append(equation)
@@ -431,7 +434,6 @@ class ImprovedKnowledgeBase():
         # idea here is that when we add an equation, for any other equation
             # if a reduction results in a shorter equation than what is in KB, we do the reduction and remove other value
         def finalReduce(self,equation):
-            print("starting final reduce")
             toSolve = deque()
             toRemove = deque()
             toAdd = deque()
@@ -473,7 +475,6 @@ class ImprovedKnowledgeBase():
                 self.equations.append(addable)
             if not reductionTaken:
                 self.equations.append(equation)
-            print("ending final reduce")
             return toSolve
 
         # other idea for introducing equation to our knowledge base
@@ -483,7 +484,6 @@ class ImprovedKnowledgeBase():
                 # subtract
                 # keep the result and whichever of the original equations is shorter (less variables)
         def otherCheckReduce(self,equation):
-            print("starting reduce")
             solvableEquations = deque()
             toRemove=deque()
             toAdd = deque()
@@ -609,7 +609,6 @@ class ImprovedKnowledgeBase():
             # if the equation generated from the clue can be immediately solved, then we can just return it instead of
                 # going through every equation in the equation base and comparing them
             if self.canBeSolved(equation):
-                #print(equation)
                 equationsToSolve.append(equation)
                 return equationsToSolve
             for otherEquation in self.equations:
@@ -653,7 +652,6 @@ class ImprovedKnowledgeBase():
             lhsSum = 0
             lastSign=None
             allSame = True
-            #print("checking if equation can be solved: "+str(equation))
             for ourVar in equation[0]:
                 if equation[0][ourVar] > 0:
                     lhsSum += equation[0][ourVar]
@@ -684,9 +682,12 @@ class ImprovedKnowledgeBase():
                     # pick any hidden neighbor from cell with lowest (CLUE-minesIdentified)/numHiddenNeighbors
         def probabilityCellToQuery(self):
             #initial value to test is the middle of the board (in case our base is empty)
-            lowestProbLoc = (self.dim/2,self.dim/2)
+            lowestProbLoc = self.randomCellToQuery()
             lowestProb=1
             for cells in self.knownValues:
+                if self.knownValues[cells]==False:
+                    # only want to consider cells identified as safe with a clue
+                    continue
                 neighbors = LibraryFunctions.getValidNeighbors(self.dim,cells)
                 numHidden=0
                 numMines=0
@@ -695,9 +696,11 @@ class ImprovedKnowledgeBase():
                     if neighbor not in self.knownValues:
                         numHidden+=1
                         hiddenNeighbor=neighbor
-                    elif self.knownValues[neighbor][0]==True:
+                    elif self.knownValues[neighbor]==False:
                         # then this neighbor is a mine
                         numMines+=1
+                if numHidden ==0:
+                    continue
                 givenProbability =(self.knownValues[cells][1] - numMines)/numHidden
                 if ( givenProbability< lowestProb):
                     # then we choose a neighbor from here
