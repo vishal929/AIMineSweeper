@@ -58,7 +58,7 @@ class ImprovedKnowledgeBase():
         #  need to adapt this to knowledge base
             # specifically, after adding this piece of data, we need to start substitution loop
         # returns a list of mines found, list of safe squares found
-        def basicAgentLogic(self,loc):
+        def basicAgentLogic(self):
             # idea, just go through each free square and see if we can use basic logic to deduce stuff
             newMinesFound=deque()
             newSafesFound = deque()
@@ -76,30 +76,26 @@ class ImprovedKnowledgeBase():
                             if neighbor not in self.knownValues:
                                 # then this should be marked as a mine
                                 newMinesFound.append(neighbor)
-                                self.knownValues[neighbor] = False
+                                #self.knownValues[neighbor] = False
                                 # need to update values of all neighbors
                                 deeperNeighbors = LibraryFunctions.getValidNeighbors(self.dim, neighbor)
                                 for space in deeperNeighbors:
                                     if space in self.knownValues and self.knownValues[space] != False:
                                         # neighbor is a free space with info
                                         # updating number of known mines
-                                        self.knownValues[neighbors][3] += 1
+                                        self.knownValues[space] = \
+                                            self.knownValues[space][0], self.knownValues[space][1], \
+                                            self.knownValues[space][2] , self.knownValues[space][3]+1
                     elif clue == numMines:
                         # every other hidden neighbor is safe
                         for neighbor in neighbors:
                             if neighbor not in self.knownValues:
                                 # then this should be marked as safe and should be setup for query
                                 newSafesFound.append(neighbor)
-                                self.knownValues[neighbor] = True
-                                # need to update values of all neighbors
-                                deeperNeighbors = LibraryFunctions.getValidNeighbors(self.dim, neighbor)
-                                for space in deeperNeighbors:
-                                    if space in self.knownValues and self.knownValues[space] != False:
-                                        # neighbor is a free space with info
-                                        # updating number of safeSpaces
-                                        self.knownValues[neighbors][2] += 1
             # now we need to do some operations with the new mines found and the new safe squares found
             # returning the new mines found and the new safe squares found
+            for mines in newMinesFound:
+                self.knownValues[mines]=False
             return newMinesFound,newSafesFound
 
         # THIS METHOD ASSUMES THERE IS A VALID CANCELLATION POSSIBLE
@@ -120,7 +116,7 @@ class ImprovedKnowledgeBase():
             for val in larger[0]:
                 newEquationDict[val]=larger[0][val]
             # updating value
-            newRHS=larger[1]
+            newRHS=larger[1]-smaller[1]
             # updating based on negative values of smaller equation
             for val in smaller[0]:
                 if val in newEquationDict:
@@ -130,15 +126,15 @@ class ImprovedKnowledgeBase():
                         del newEquationDict[val]
                 else:
                     newEquationDict[val]= -smaller[0][val]
-            newRHS -= smaller[1]
             # need to convert to frozen set for actual use
-            return newEquationDict,newRHS
+            return (newEquationDict,newRHS)
 
         # newDiscovery is a tuple (1/0, loc)
             # 1/0 indicates if mine or not
             # location is the (row,col) of discovered info about entry
         # returns list of equations that can be solved (already removed from our knowledge base)
         def substitution(self,newDiscovery):
+            print("starting substitution")
             # removing any solved equations
             # we need to check for a certain special case
                 # we need to check if this value is already known, then we can skip
@@ -184,6 +180,7 @@ class ImprovedKnowledgeBase():
             for equation in reducedList:
                 # adding in reduced equations that arent solvable
                 self.equations.append(equation)
+            print("ending substitution")
             return solvedList
 
         # solves an equation detected by isSolvable method
@@ -195,9 +192,12 @@ class ImprovedKnowledgeBase():
             foundMines=deque()
             foundSafes=deque()
             for ourVar in equation[0]:
+                if ourVar in self.knownValues:
+                    continue
                 # logic for if rhs is zero and all coefficients are same sign (all are free)
                 if equation[1] == 0:
                     # then this is safe
+                    '''
                     # updating neighbors
                     neighbors = LibraryFunctions.getValidNeighbors(self.dim, ourVar)
                     for neighbor in neighbors:
@@ -211,6 +211,7 @@ class ImprovedKnowledgeBase():
                     # we can query this and add to knowledge base
                     # toQuery.push(ourVar)
                     # solvedVariables.push((0,ourVar))
+                    '''
                     foundSafes.append(ourVar)
                     continue
                 # logic for if all positive terms on lhs equals rhs (positive terms are mines), everything else is free
@@ -218,6 +219,7 @@ class ImprovedKnowledgeBase():
                     # this is a mine
                     self.knownValues[ourVar]=False
                     # need to update values of all neighbors
+
                     neighbors = LibraryFunctions.getValidNeighbors(self.dim,ourVar)
                     for neighbor in neighbors:
                         if neighbor in self.knownValues and self.knownValues[neighbor]!=False:
@@ -229,10 +231,12 @@ class ImprovedKnowledgeBase():
                                 self.knownValues[neighbor][2], self.knownValues[neighbor][3]+1
 
                     #solvedVariables.push((1,ourVar))
+
                     foundMines.append(ourVar)
                 else:
                     # then this is safe
                     # updating neighbors
+                    '''
                     neighbors = LibraryFunctions.getValidNeighbors(self.dim, ourVar)
                     for neighbor in neighbors:
                         if neighbor in self.knownValues and self.knownValues[neighbor] != False:
@@ -245,6 +249,7 @@ class ImprovedKnowledgeBase():
                     # we can query this and add to knowledge base
                     #toQuery.push(ourVar)
                     #solvedVariables.push((0,ourVar))
+                    '''
                     foundSafes.append(ourVar)
                 # removing the equation from our equation set, as we extracted all info
                 #self.equations.remove(equation)
@@ -275,6 +280,10 @@ class ImprovedKnowledgeBase():
             # otherwise, returns loc,EQUATION if the square is free
                 # loc is (row,col) and EQUATION is the equation built from clue to add to knowledge base
         def queryCellFromBoard(self, loc,Board):
+            if loc in self.knownValues:
+                # we do not try and query the same thing twice
+                # returning location with an empty equation
+                return loc, ({},0)
             numMinesClue = Board.queryPosition(loc)
             if numMinesClue == -1:
                 # then agent queried a mine
@@ -331,6 +340,169 @@ class ImprovedKnowledgeBase():
                 #self.equations.add(newEquation)
                 return loc, newEquation
 
+        # idea here is to try and get a contradiction by substituting a certain value of a location in an equation
+            # how to get a contradiction:
+                #
+        def tryContradictions(self,equation):
+            pass
+
+        # idea here is that when we add an equation, for any other equation
+            # if a reduction results in a shorter equation than what is in KB, we do the reduction and remove other value
+        def finalReduce(self,equation):
+            toSolve = deque()
+            toRemove = deque()
+            toAdd = deque()
+            if equation is None:
+                return toSolve
+            if not equation[0]:
+                return toSolve
+            for otherEquation in self.equations:
+                if self.canBeSolved(otherEquation):
+                    toSolve.append(otherEquation)
+                    toRemove.append(otherEquation)
+                    continue
+                reductionToCheck = self.reductionEquation(equation,otherEquation)
+                if self.canBeSolved(reductionToCheck):
+                    # removing old equation in KB also
+                    toSolve.append(reductionToCheck)
+                    toRemove.append(otherEquation)
+                    if equation not in toAdd:
+                        toAdd.append(equation)
+                else:
+                    # checking if this equation is shorter than both given equations
+                    if len(reductionToCheck[0])<len(equation[0]) and len(reductionToCheck[0])< len(otherEquation[0]):
+                        toAdd.append(reductionToCheck)
+                        # checking which parent equation to keep based on length
+                        if len(equation[0])<len(otherEquation[0]):
+                            toRemove.append(otherEquation)
+                            if equation not in toAdd:
+                                toAdd.append(equation)
+            # removing then adding
+            for removable in toRemove:
+                self.equations.remove(removable)
+            for addable in toAdd:
+                self.equations.append(addable)
+            return toSolve
+
+        # other idea for introducing equation to our knowledge base
+            # instead of subtracting this equation from all other equations
+            # we can look through the knowledge base
+                # find the most overlapping equation
+                # subtract
+                # keep the result and whichever of the original equations is shorter (less variables)
+        def otherCheckReduce(self,equation):
+            print("starting reduce")
+            solvableEquations = deque()
+            toRemove=deque()
+            toAdd = deque()
+            bestReduction=None
+            if equation is None:
+                return solvableEquations
+            if not equation[0]:
+                return solvableEquations
+            if self.canBeSolved(equation):
+                solvableEquations.append(equation)
+                return solvableEquations
+            for equations in self.equations:
+                # removing solvable equations on our pass
+                if self.canBeSolved(equations):
+                    solvableEquations.append(equations)
+                    toRemove.append(equations)
+                    continue
+                reductionToCheck = self.reductionEquation(equation, equations)
+                if bestReduction is None:
+                    # need to see if reduced form is at least the same size as the smaller of the two equations
+                    # then we can remove the larger equation after reduction
+                    if len(equations[0])<len(equation[0]):
+                        smaller = equations
+                    else:
+                        smaller = equation
+                    if len(reductionToCheck[0])<len(smaller[0]):
+                        # then we found our reduction
+                            # we store the equation to be reduced, so we can always run the reduction again
+                        bestReduction=equations
+                else:
+                    # then we need to see if the other reduction is better
+                    reductionToCompare = self.reductionEquation(equation,bestReduction)
+                    if len(reductionToCompare[0])>len(reductionToCheck[0]):
+                        # then we found a better reduction
+                        bestReduction=equations
+            # now we know which equation to use, if any
+            if bestReduction is None:
+                # then we found no good reduction
+                # we just add the new equation
+                toAdd.append(equation)
+            else:
+                finalReduction = self.reductionEquation(equation,bestReduction)
+                if self.canBeSolved(finalReduction):
+                    solvableEquations.append(finalReduction)
+                else:
+                    toAdd.append(finalReduction)
+                # checking which other equation to remove/add
+                if len(bestReduction[0])>len(equation[0]):
+                    # then I remove the equation already in the KB and add the new one
+                    toAdd.append(equation)
+                    toRemove.append(bestReduction)
+            for removable in toRemove:
+                self.equations.remove(removable)
+            for addable in toAdd:
+                self.equations.append(addable)
+            return solvableEquations
+
+
+
+
+
+            # removing all solvable equations found (because we will return them to solve out of the KB)
+            for removable in toRemove:
+                self.equations.remove(removable)
+            for addable in toAdd:
+                self.equations.append(addable)
+            return solvableEquations
+
+        # another adaptation of reduce scheme
+            # idea here is that we first add the new equation to the KB if it is not immediately solvable
+            # then, for each equation, we compare it to every other equation and see if the reduction is solvable
+                # if so, we add both equations to remove list and continue
+            # as we go, we see if equations can be solvable by themselves
+        def evenOtherCheckReduce(self,equation):
+            toRemove = deque()
+            toSolve = deque()
+
+            if not equation[0]:
+                # then variables of the equation are empty (no unknowns)
+                pass
+            else:
+                # then equation might be solvable, need to check for this
+                if self.canBeSolved(equation):
+                    toSolve.append(equation)
+                else:
+                    self.equations.append(equation)
+            for firstEquation in self.equations:
+                if self.canBeSolved(firstEquation):
+                    # if it can be solved, we can remove it and add it to tosolve list
+                    toRemove.append(firstEquation)
+                    toSolve.append(firstEquation)
+                else:
+                    # then we can compare this equation with every other equation to see if the reduction is solvable
+                    for otherEquation in self.equations:
+                        if otherEquation!=firstEquation:
+                            # checking the reduction
+                            reductionToCheck = self.reductionEquation(firstEquation,otherEquation)
+                            if self.canBeSolved(reductionToCheck):
+                                # then we can add this to a solvable list and keep the shorter equation
+                                toSolve.append(reductionToCheck)
+                                if len(firstEquation[0])< len(otherEquation[0]):
+                                    if otherEquation not in toRemove:
+                                        toRemove.append(otherEquation)
+                                else:
+                                    if firstEquation not in toRemove:
+                                        toRemove.append(firstEquation)
+            for removable in toRemove:
+                self.equations.remove(removable)
+            return toSolve
+
+
 
 
         # compares given equation with every other equation in the knowledge base to try and reduce
@@ -346,9 +518,11 @@ class ImprovedKnowledgeBase():
             equationsToRemove=deque()
             equationsToAdd=deque()
             equationsToSolve=deque()
+            if equation is None:
+                return equationsToSolve
             # checking if the equation is empty, if so, we can return nothing
             if not equation[0]:
-                # then the dictionary of coefficients is emtpy, which means nothing
+                # then the dictionary of coefficients is empty, which means nothing
                 return equationsToSolve
             # if the equation generated from the clue can be immediately solved, then we can just return it instead of
                 # going through every equation in the equation base and comparing them
@@ -453,12 +627,16 @@ class ImprovedKnowledgeBase():
         # generates random cell to query
             #versus our improved above method (although I think that is still naive)
         def randomCellToQuery(self):
+            # getting list of all vacant locations
+            unknowns = []
+            for i in range(self.dim):
+                for j in range(self.dim):
+                    if (i,j) not in self.knownValues:
+                        unknowns.append((i,j))
+            # now unknowns is a list of unknown locations (we just pick randomly from this list)
+            pos = randint(0,len(unknowns)-1)
+            return unknowns[pos]
 
-            loc = (randint(0,self.dim),randint(0,self.dim))
-            # generating a location that is not known in our knowledge base
-            while (loc in self.knownValues):
-                loc=(randint(0,self.dim),randint(0,self.dim))
-            return loc
 
         # method to support user entering clues and knowledge base adapting from there
             # clue is of the form (loc,numMines)
@@ -515,6 +693,7 @@ class ImprovedKnowledgeBase():
             print("Printing equations:")
             for equation in self.equations:
                 print(equation)
+            print("ENDING PRINT")
 
 
 
