@@ -8,4 +8,4 @@ myBoard.generateBoard(270)
 myKnowledge = ImprovedKnowledgeBase(dim)
 
 # our test of improved agent
-ImprovedAgent.improvedSolveBoard(myBoard,myKnowledge,ImprovedKnowledgeBase.probabilityCellToQuery)
+ImprovedAgent.improvedSolveBoard(myBoard,myKnowledge,ImprovedKnowledgeBase.randomCellToQuery)
