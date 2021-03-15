@@ -23,9 +23,11 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
             toQuery = selectionFunction(improvedKnowledge)
             # actually querying the square
             print("Querying location: "+str(toQuery))
-            result = improvedKnowledge.queryCellFromBoard(toQuery,board)
+            toSolve = improvedKnowledge.queryCellFromBoard(toQuery,board)
+            #result = improvedKnowledge.queryCellFromBoard(toQuery,board)
             # starting substitution -> solve ->substitution loop with new value of square
-            toSolve=deque()
+            #toSolve=deque()
+            '''
             if result[1] is None:
                 # then the agent queried a mine
                 print("OH NO! We queried a mine at location "+str(toQuery))
@@ -39,61 +41,25 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 for solvable in toAdd:
                     toSolve.append(solvable)
                 # reducing equation and adding return value to deque of equations to solve
-                toAdd= improvedKnowledge.finalReduce(result[1])
+                toAdd= improvedKnowledge.addReduce(result[1])
                 for solvable in toAdd:
                     toSolve.append(solvable)
                 # toSolve is a dequeue of equations that were removed from our knowledge base already that are in solvable state
                 # we just need to solve them, substitute, add to the end of the dequeue and repeat
+            '''
             # run basic agent logic
+
             basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
             while basicMines or basicSafes:
                 if basicMines:
-                    mineToSub = basicMines.pop()
-                    newToSolve = improvedKnowledge.substitution((1, mineToSub))
-                    for newSolvable in newToSolve:
-                        toSolve.append(newSolvable)
-
-                    # then we have mines to try and sub
-                    # run basic agent logic
-                    otherMines, otherSafes = improvedKnowledge.basicAgentLogic()
-                    for mines in otherMines:
-                        if mines not in basicMines:
-                            basicMines.append(mines)
-                    for safes in otherSafes:
-                        if safes not in basicSafes:
-                            basicSafes.append(safes)
+                    mineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve)
                     improvedKnowledge.printKnowledgeBase()
                 if basicSafes:
-                    # then we have free squares to try and sub and equation reduce
-                    newSafe = basicSafes.pop()
-                    # getting equation from clue from query
-                    result = improvedKnowledge.queryCellFromBoard(newSafe, board)
-                    if result[1] is None:
-                        print("Queried a MINE at position " + str(result[0]))
-                    else:
-                        print("Queried a safe spot at position " + str(result[0]) + " with equation " + str(
-                            result[1]))
-                    # substitution of this free square
-                    newToSolve = improvedKnowledge.substitution((0, newSafe))
-                    for newSolvable in newToSolve:
-                        toSolve.append(newSolvable)
+                    safeLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve,board)
                     improvedKnowledge.printKnowledgeBase()
-                    # starting reduction of equation with knowledge base
-                    # checkReduce reduces this equation after comparison with every other equation
-                    # it returns a deque of equations that are solvable after reduction
-                    # IF THE EQUATION IS USELESS (empty), we just continue
-                    newToSolve = improvedKnowledge.otherCheckReduce(result[1])
-                    for newSolvable in newToSolve:
-                        toSolve.append(newSolvable)
-                    # run basic agent logic
-                    otherMines, otherSafes = improvedKnowledge.basicAgentLogic()
-                    for mines in otherMines:
-                        if mines not in basicMines:
-                            basicMines.append(mines)
-                    for safes in otherSafes:
-                        if safes not in basicSafes:
-                            basicSafes.append(safes)
-                    improvedKnowledge.printKnowledgeBase()
+
+            # initiating loop to see if we can go further
+            reduceLoop(improvedKnowledge,toSolve)
             while toSolve:
                 # while we still have equations to solve, we pop one at a time
                 print("popping solvable equation")
@@ -102,6 +68,7 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 # equation solver returns list of discovered mines, and list of discovered free spots from solving the equation
                 discoveredMines, discoveredFree = improvedKnowledge.solvedEquationSolver(equationToSolve)
                 # run basic agent logic
+
                 basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
                 for mines in basicMines:
                     if mines not in discoveredMines:
@@ -109,6 +76,7 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 for safes in basicSafes:
                     if safes not in discoveredFree:
                         discoveredFree.append(safes)
+
                 #discoveredMines+=basicMines
                 #discoveredFree+=basicSafes
                 print("found mines at locs "+str(discoveredMines))
@@ -117,86 +85,15 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 #newToSolve = deque()
                 while discoveredMines or discoveredFree:
                     if discoveredMines:
-                        mineToSub = discoveredMines.pop()
-                        newToSolve = improvedKnowledge.substitution((1, mineToSub))
-                        for newSolvable in newToSolve:
-                            toSolve.append(newSolvable)
-
-                        # then we have mines to try and sub
-                        # run basic agent logic
-                        basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
-                        for mines in basicMines:
-                            if mines not in discoveredMines:
-                                discoveredMines.append(mines)
-                        for safes in basicSafes:
-                            if safes not in discoveredFree:
-                                discoveredFree.append(safes)
+                        mineLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve)
                         improvedKnowledge.printKnowledgeBase()
                     if discoveredFree:
+                        safeLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve,board)
                         # then we have free squares to try and sub and equation reduce
-                        newSafe = discoveredFree.pop()
-                        # getting equation from clue from query
-                        result = improvedKnowledge.queryCellFromBoard(newSafe, board)
-                        if result[1] is None:
-                            print("Queried a MINE at position " + str(result[0]))
-                        else:
-                            print("Queried a safe spot at position " + str(result[0]) + " with equation " + str(
-                                result[1]))
-                        # substitution of this free square
-                        newToSolve = improvedKnowledge.substitution((0, newSafe))
-                        for newSolvable in newToSolve:
-                            toSolve.append(newSolvable)
                         improvedKnowledge.printKnowledgeBase()
-                        # starting reduction of equation with knowledge base
-                        # checkReduce reduces this equation after comparison with every other equation
-                        # it returns a deque of equations that are solvable after reduction
-                        # IF THE EQUATION IS USELESS (empty), we just continue
-                        newToSolve = improvedKnowledge.finalReduce(result[1])
-                        for newSolvable in newToSolve:
-                            toSolve.append(newSolvable)
-                        # run basic agent logic
-                        basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
-                        for mines in basicMines:
-                            if mines not in discoveredMines:
-                                discoveredMines.append(mines)
-                        for safes in basicSafes:
-                            if safes not in discoveredFree:
-                                discoveredFree.append(safes)
-                        improvedKnowledge.printKnowledgeBase()
-                '''
-                while discoveredMines:
-                    newMines = discoveredMines.pop()
-                    newToSolve = improvedKnowledge.substitution((1, newMines))
-                    for newSolvable in newToSolve:
-                        toSolve.append(newSolvable)
+                # seeing if we can reduce further
+                reduceLoop(improvedKnowledge,toSolve)
 
-                    improvedKnowledge.printKnowledgeBase()
-                # now, we query each free spot, build an equation based on the clue,
-                # and add the equation to our knowledge base after reducing it with every equation
-                while discoveredFree:
-                    newSafe = discoveredFree.pop()
-                    # getting equation from clue from query
-                    result = improvedKnowledge.queryCellFromBoard(newSafe, board)
-                    if result[1] is None:
-                        print("Queried a MINE at position "+str(result[0]))
-                    else:
-                        print("Queried a safe spot at position "+str(result[0])+ " with equation "+str(result[1]))
-                    # substitution of this free square
-                    newToSolve=improvedKnowledge.substitution((0,newSafe))
-                    for newSolvable in newToSolve:
-                        toSolve.append(newSolvable)
-                    improvedKnowledge.printKnowledgeBase()
-                    # starting reduction of equation with knowledge base
-                    # checkReduce reduces this equation after comparison with every other equation
-                    # it returns a deque of equations that are solvable after reduction
-                    # IF THE EQUATION IS USELESS (empty), we just continue
-                    newToSolve = improvedKnowledge.evenOtherCheckReduce(result[1])
-                    for newSolvable in newToSolve:
-                        toSolve.append(newSolvable)
-                
-                '''
-
-                    # improvedKnowledge.printKnowledgeBase()
 
 
 
@@ -310,5 +207,74 @@ def improvedSolveBoardFeed(improvedKnowledge,clue,selectionFunction):
 
 
 
+
+# helper method to clean up code in first method
+    #basicMines is a deque of known mines
+    # basicSafes is a dequeue of known safe squares
+    # improved knowledge is our improved knowledge base
+    # toSolve is a dequeue of solvable equations
+def mineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve):
+    mineToSub = basicMines.pop()
+    newToSolve = improvedKnowledge.substitution((1, mineToSub))
+    for newSolvable in newToSolve:
+        toSolve.append(newSolvable)
+
+    # then we have mines to try and sub
+    # run basic agent logic
+
+    otherMines, otherSafes = improvedKnowledge.basicAgentLogic()
+    for mines in otherMines:
+        if mines not in basicMines:
+            basicMines.append(mines)
+    for safes in otherSafes:
+        if safes not in basicSafes:
+            basicSafes.append(safes)
+
+
+# same parameters as above equation
+def safeLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve,board):
+    newSafe = discoveredFree.pop()
+    # getting equation from clue from query
+    toSolve+= improvedKnowledge.queryCellFromBoard(newSafe,board)
+    '''
+    result = improvedKnowledge.queryCellFromBoard(newSafe, board)
+    if result[1] is None:
+        print("Queried a MINE at position " + str(result[0]))
+    else:
+        print("Queried a safe spot at position " + str(result[0]) + " with equation " + str(
+            result[1]))
+    
+    # substitution of this free square
+    newToSolve = improvedKnowledge.substitution((0, newSafe))
+    for newSolvable in newToSolve:
+        toSolve.append(newSolvable)
+    # starting reduction of equation with knowledge base
+    # checkReduce reduces this equation after comparison with every other equation
+    # it returns a deque of equations that are solvable after reduction
+    # IF THE EQUATION IS USELESS (empty), we just continue
+    newToSolve = improvedKnowledge.addReduce(result[1])
+    for newSolvable in newToSolve:
+        toSolve.append(newSolvable)
+    '''
+    # run basic agent logic
+
+    basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
+    for mines in basicMines:
+        if mines not in discoveredMines:
+            discoveredMines.append(mines)
+    for safes in basicSafes:
+        if safes not in discoveredFree:
+            discoveredFree.append(safes)
+
+
+# helper to initiate the loop to keep reducing
+def reduceLoop(improvedKnowledge, toSolve):
+    keepReducing = improvedKnowledge.passReduce()
+    for solvable in keepReducing[1]:
+        toSolve.append(solvable)
+    while (keepReducing[0]):
+        keepReducing=improvedKnowledge.passReduce()
+        for solvable in keepReducing[1]:
+            toSolve.append(solvable)
 
 

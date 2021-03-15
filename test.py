@@ -4,7 +4,7 @@ import ImprovedAgent
 
 dim =10
 myBoard = Board(dim)
-myBoard.generateBoard(20)
+myBoard.generateBoard(30)
 myKnowledge = ImprovedKnowledgeBase(dim)
 
 # our test of improved agent
