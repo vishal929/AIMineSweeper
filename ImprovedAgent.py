@@ -15,13 +15,14 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 # then the board can print out the output or something
             print("Board is solved!")
             print("num mines triggered:"+str(board.numTriggers))
+            print(str(len(board.mines)-board.numTriggers))
             break
         else:
             # then we can guess a square
                 # this will lead to a query --> reduce --> solve --> substitute loop
             toQuery = selectionFunction(improvedKnowledge)
             # actually querying the square
-            print("Querying location: "+str(toQuery))
+            #print("Querying location: "+str(toQuery))
             toSolve = improvedKnowledge.queryCellFromBoard(toQuery,board)
             #result = improvedKnowledge.queryCellFromBoard(toQuery,board)
             # starting substitution -> solve ->substitution loop with new value of square
@@ -29,12 +30,12 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
             '''
             if result[1] is None:
                 # then the agent queried a mine
-                print("OH NO! We queried a mine at location "+str(toQuery))
+                #print("OH NO! We queried a mine at location "+str(toQuery))
                 # substituting mine value
                 toSolve += improvedKnowledge.substitution((1, result[0]))
             else:
                 # then the agent queried a safe spot
-                print("Queried a safe spot at location"+str(toQuery)+" with equation"+str(result[1]))
+                #print("Queried a safe spot at location"+str(toQuery)+" with equation"+str(result[1]))
                 # substituting safe value
                 toAdd =improvedKnowledge.substitution((0, result[0]))
                 for solvable in toAdd:
@@ -52,17 +53,17 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
             while basicMines or basicSafes:
                 if basicMines:
                     mineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve)
-                    improvedKnowledge.printKnowledgeBase()
+                    #improvedKnowledge.printKnowledgeBase()
                 if basicSafes:
                     safeLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve,board)
-                    improvedKnowledge.printKnowledgeBase()
+                    #improvedKnowledge.printKnowledgeBase()
 
             # initiating loop to see if we can go further
             reduceLoop(improvedKnowledge,toSolve)
             while toSolve:
                 # while we still have equations to solve, we pop one at a time
                 equationToSolve = toSolve.pop()
-                print("popped equation:"+str(equationToSolve))
+                #print("popped equation:"+str(equationToSolve))
                 # solving equations
                 # equation solver returns list of discovered mines, and list of discovered free spots from solving the equation
                 discoveredMines, discoveredFree = improvedKnowledge.solvedEquationSolver(equationToSolve)
@@ -78,18 +79,18 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
 
                 #discoveredMines+=basicMines
                 #discoveredFree+=basicSafes
-                print("found mines at locs "+str(discoveredMines))
-                print("found free spots at "+str(discoveredFree))
+                #print("found mines at locs "+str(discoveredMines))
+                #print("found free spots at "+str(discoveredFree))
                 # first we substitute the discovered mines and add any solvable equations to toSolve
                 #newToSolve = deque()
                 while discoveredMines or discoveredFree:
                     if discoveredMines:
                         mineLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve)
-                        improvedKnowledge.printKnowledgeBase()
+                        #improvedKnowledge.printKnowledgeBase()
                     if discoveredFree:
                         safeLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve,board)
                         # then we have free squares to try and sub and equation reduce
-                        improvedKnowledge.printKnowledgeBase()
+                        #improvedKnowledge.printKnowledgeBase()
                 # seeing if we can reduce further
                 reduceLoop(improvedKnowledge,toSolve)
 
@@ -107,102 +108,84 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
     # selection function is the function we use to select squares to query if no further safe squares can be found
         # either random, probabilistic or something else
         # so selectionFunction is a FUNCTION OBJECT/Pointer
-def improvedSolveBoardFeed(improvedKnowledge,clue,selectionFunction):
+    #nonQueriedSafeSquares is a deque of safe squares detected by our knowledge base, but the user has not queried yet
+        # this is provided so that these can be repeatedly shown to the user to query from
+def improvedSolveBoardFeed(improvedKnowledge,clue,selectionFunction,nonQueriedSafeSquares):
+    # if we have as many squares in knowledge as squares in the board, we are done
+    if len(improvedKnowledge.knownValues) == improvedKnowledge.dim ** 2:
+        # then we are done
+        #print("BOARD IS SOLVED!")
+        return (-1, -1)
     if clue is None:
         # then the user just started
+        nonQueriedSafeSquares=deque()
         # we recommend the user to pick the middle of the board to query
-        return None,None,(improvedKnowledge.dim/2,improvedKnowledge.dim/2)
+        return (improvedKnowledge.dim/2,improvedKnowledge.dim/2)
     else:
-        # we can include the clue in our knowledge base if not already present
-        if clue in improvedKnowledge.knownValues:
+        # we can include the clue in our knowledge base if not already present, if this clue was given from the tracked list of free squares toQuery, we can remove it
+        if clue[0] in improvedKnowledge.knownValues:
             # user put a clue which was already given at some point
-            print("THIS WAS ALREADY REPORTED BY OUR KNOWLEDGE BASE! Please put another clue!")
+            #print("THIS WAS ALREADY REPORTED BY OUR KNOWLEDGE BASE! Please put another clue!")
             # this is error we return all None
-            return None,None,None
+            return (-1,0)
         else:
+            if clue[0] in nonQueriedSafeSquares:
+                nonQueriedSafeSquares.remove(clue[0])
             # we add to clue to knowledge base, get all the safes, and mines, in total from this step
                 # then we can recommend a square for the user to query
-            result = improvedKnowledge.feedFromUser(clue)
-            # if we have as many squares in knowledge as squares in the board, we are done
-            if len(improvedKnowledge.knownValues) == improvedKnowledge.dim**2:
-                # then we are done
-                print("BOARD IS SOLVED!")
-                return None, None, (-1,-1)
-            # if the equation is NONE, then we can move right to substitution of mine
-                # if not, we need to go through substitution of the free space
-                    # NEED TO CONSIDER IF EQUATION TO ADD CHANGES OR NOT!!!!
-            if result[1] is None:
-                # then this was a mine, we can go to substitution
-                toSolve = improvedKnowledge.substitution((1,result[0]))
-                foundMines=deque()
-                foundSafes=deque()
-                # to solve is a deque of solvable equations
-                    #(already removed from list of equations in knowledge base)
-                for solvable in toSolve:
-                    result = improvedKnowledge.solvedEquationSolver(solvable)
-                    for mines in result[0]:
-                        toSolve+=improvedKnowledge.substitution((1,mines))
-                        foundMines.append(mines)
-                    for safes in result[1]:
-                        toSolve+=improvedKnowledge.substitution((0,safes))
-                        foundSafes.append(safes)
-                # after this loop is finished we have found all possible mines/free squares
-                    # we can display them to the user
-                    # then user must choose to input a clue from the list of free mines
-                # we will always recommend user to query the first square on the safe list
-                if not foundSafes:
-                    # then we did not find any safe squares
-                    # we can pick randomly here or use probabilistic picking
-                    # calling our selection function (input as an argument)
-                    toQuery = selectionFunction(improvedKnowledge)
-                    return foundMines,None,toQuery
-                return foundMines,foundSafes,foundSafes[0]
+            toSolve = improvedKnowledge.feedFromUser(clue)
+            toSolve+= improvedKnowledge.passReduce()
+            foundMines= deque()
+            foundSafes = deque()
+            # run basic agent logic
+
+            basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
+            while basicMines or basicSafes:
+                if basicMines:
+                    mineLoopHelper(basicMines, basicSafes, improvedKnowledge, toSolve)
+                if basicSafes:
+                    foundSafes.append(basicSafes.pop())
+            while toSolve:
+                # solving equation, appending mines/safe squares and proceeding
+                solvable = toSolve.pop()
+                # solving equation and getting values found for mines and safes
+                discoveredMines, discoveredFree = improvedKnowledge.solvedEquationSolver(solvable)
+                # run basic agent logic
+
+                basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
+                for mines in basicMines:
+                    if mines not in discoveredMines:
+                        discoveredMines.append(mines)
+                for safes in basicSafes:
+                    if safes not in discoveredFree:
+                        discoveredFree.append(safes)
+
+
+                # first we substitute the discovered mines and add any solvable equations to toSolve
+                while discoveredMines or discoveredFree:
+                    if discoveredMines:
+                        mineLoopHelper(discoveredMines, discoveredFree, improvedKnowledge, toSolve)
+                        #improvedKnowledge.printKnowledgeBase()
+                    if discoveredFree:
+                        foundSafes.append(discoveredFree.pop())
+                # seeing if we can reduce further
+                reduceLoop(improvedKnowledge, toSolve)
+            # at this point we have substituted every mine and we have a list of free spaces for the user to query
+            for safe in foundSafes:
+                if safe not in nonQueriedSafeSquares:
+                    nonQueriedSafeSquares.append(safe)
+            if not nonQueriedSafeSquares:
+                # then we should refer to selection function to advise user
+                return improvedKnowledge.selectionFunction()
             else:
-                # then user queried a safe cell and we have an equation to use
-                    # idea, first we substitute the known value of the safe cell
-                    # then, we go into reduce equation -> solve equation -> substitute loop
-                    # once we cannot do anything more, we have a list of found mines and found safe squares
-                        # for the user to pick from and query
-                        # just like in the last branch, we will recommend user to query the first square in the list of
-                        # found safe squares
-                toSolve = improvedKnowledge.substitution((0, result[0]))
-                foundMines = deque()
-                foundSafes = deque()
-                # to solve is a deque of solvable equations
-                # (already removed from list of equations in knowledge base)
-                for solvable in toSolve:
-                    output = improvedKnowledge.solvedEquationSolver(solvable)
-                    for mines in output[0]:
-                        toSolve += improvedKnowledge.substitution((1, mines))
-                        foundMines.append(mines)
-                    for safes in output[1]:
-                        toSolve += improvedKnowledge.substitution((0, safes))
-                        foundSafes.append(safes)
-                # above concludes the substitution -> solve loop
-                # now we will initiate the equation -> reduce ->solve -> substitute -> solve ->substitute ... loop
-                # below method call will compare the new equation with every equation in our knowledge base
-                    # will also reduce if it finds some overlap and it throws out the old equation (because it is redundant)
-                    # now toSolve is redefined to be a deque of solvable equations
-                        # from here, we can just mimic the reduce solve loop again
-                toSolve = improvedKnowledge.checkReduce(result[1])
-                for solvable in toSolve:
-                    output = improvedKnowledge.solvedEquationSolver(solvable)
-                    for mines in output[0]:
-                        toSolve += improvedKnowledge.substitution((1, mines))
-                        foundMines.append(mines)
-                    for safes in output[1]:
-                        toSolve += improvedKnowledge.substitution((0, safes))
-                        foundSafes.append(safes)
-                # now we have the full list of mines and safesquares
-                    # we return the list of mines found, safe squares found that the user can query
-                        #last return item is the location that is recommended to query (first location from foundSafes)
-                if not foundSafes:
-                    # then we did not find any safe squares
-                    # we can pick randomly here or use probabilistic picking
-                    # calling our selection function (input as an argument)
-                    toQuery = selectionFunction(improvedKnowledge)
-                    return foundMines, None, toQuery
-                return foundMines,foundSafes,foundSafes[0]
+                # then we can just return the first safe value we found
+                return nonQueriedSafeSquares[0]
+
+
+
+
+
+
 
 
 
@@ -238,9 +221,9 @@ def safeLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve,boar
     '''
     result = improvedKnowledge.queryCellFromBoard(newSafe, board)
     if result[1] is None:
-        print("Queried a MINE at position " + str(result[0]))
+        #print("Queried a MINE at position " + str(result[0]))
     else:
-        print("Queried a safe spot at position " + str(result[0]) + " with equation " + str(
+        #print("Queried a safe spot at position " + str(result[0]) + " with equation " + str(
             result[1]))
     
     # substitution of this free square

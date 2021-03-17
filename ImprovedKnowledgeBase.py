@@ -1,5 +1,6 @@
 # if we cannot update our knowledge base at some point
         # we proceed with trying to obtain contradictions at unknown points
+from copy import deepcopy
 from random import randint
 from collections import deque
 
@@ -355,9 +356,140 @@ class ImprovedKnowledgeBase():
 
         # idea here is to try and get a contradiction by substituting a certain value of a location in an equation
             # how to get a contradiction:
-                #
-        def tryContradictions(self,equation):
-            pass
+                #idea, we create a copy of the current KB (either make a deep copy, or keep track of changes)
+                # then, we run simulations on it, till we can come up with a contradiction
+            # what form is our contradiction?:
+                # either we will end up with some equation that is impossible, i.e 0=-1 or something of that form
+                # or we will end up contradicting some clue (are these the same?)
+            # this is pretty heavy logic, so we should only do this if we cannot find any new spaces to substitute/query
+            # returns None if no contradictions found
+                # for any substitution we try
+            # otherwise, returns a value like discovery in substitute function
+                #(1/0 if mine or not, locToSubstitute)
+            # so this function terminates as soon as we get a single contradiction (this is because then we might be able to proceed with less taxing methods)
+        def tryContradictions(self):
+            # deque of the form (equation, ((0,1),locToTryAndGetContradictionFrom)) -> ...
+            discoveryList = deque()
+            # which element to try and substitute?
+            # we try and substitute element individually which will make a given equation solvable
+                # from there we can continue substitutions and see if there are any contradictions
+            # if plugging in a value in an equation makes the equation solvable, then we are interested in using that to try and get a contradiction
+            for equation in self.equations:
+                for variable in equation[0]:
+                    coefficientDict = equation[0]
+                    modification = coefficientDict[variable]
+                    rhs=equation[1]
+                    # testing value if mine or not mine
+                    # first testing free value (free value means rhs is not altered in any way)
+                    freeDict = deepcopy(equation[0])
+                    del freeDict[variable]
+                    freeRHS = equation[1]
+                    freeEquation=freeDict,freeRHS
+                    if self.canBeSolved(freeEquation):
+                        # then we can append this equation and change to the deque of stuff to try
+                        discoveryList.append((equation,(0,variable)))
+                    mineDict = deepcopy(equation[0])
+                    mineModification = mineDict[variable]
+                    mineRHS = equation[1]-mineModification
+                    del mineDict[variable]
+                    mineEquation = mineDict, mineRHS
+                    if self.canBeSolved(mineEquation):
+                        # then we can append this equation and change to the deque of stuff to try
+                        discoveryList.append((equation,(1,variable)))
+            # now we have a list of possible substitutions that will lead to a solvable equation
+                # we need to run "simulations" on each and see if we end up with a contradiction or not
+            for possibleContradictionValue in discoveryList:
+                # running simulation
+                result = self.runSimulation(possibleContradictionValue[0],possibleContradictionValue[1])
+                if result is not None:
+                    return result
+
+        # helper function to run a simulation on a proposed KB value and see if it leads to a contradiction
+            #equation is the equation to substitute
+            # proposed discovery is the proposed guess to lead to a contradiction
+        def runSimulation(self,equation,proposedDiscovery):
+            # creating copy of KB equations
+            copyEquations = deepcopy(self.equations)
+            # removing the solvable equation (after substitution) from our KB
+            copyEquations.remove(equation)
+            # performing substitution
+            newLHS = equation[0]
+            newRHS = equation[1]
+            toSubtract = equation[0][proposedDiscovery[1]] * proposedDiscovery[0]
+            newRHS-=toSubtract
+            del equation[0][proposedDiscovery[1]]
+            newEquation = (newLHS,newRHS)
+
+            # solving the new equation (because we checked already if it was solvable in previous function)
+            foundMines,foundSafes = self.solvedEquationSolver(newEquation)
+            # now we keep substituting the new founds and seeing if contradiction found
+                # contradiction would be like getting locations solved in both different ways
+                        # i.e deducing that (3,0) is both a mine and free --> contradiction
+            while foundMines or foundSafes:
+                if foundMines:
+                    # substitute mine and check for contradiction
+                    pass
+                if foundSafes:
+                    # substitute free spot and check for contradiction
+                    pass
+            # returning None if no contradiction found, otherwise Discovery (value and location) is returned
+            return None
+
+        # helper function for contradiction substitution (simulation)
+        def contradictionSubstitution(self,newDiscovery,copyEquations):
+            # removing any solved equations
+            # we need to check for a certain special case
+                # we need to check if this value is already known, then we can skip
+            removedList = deque()
+            solvedList = deque()
+            reducedList = deque()
+
+            for equation in copyEquations:
+                if newDiscovery[1] in equation[0]:
+                    lhs = equation[0]
+                    rhs = equation[1]
+                    # modification is the new value on LHS based on discovered value of this entry
+                    # getting coefficient
+                    #modification = equation[0][newDiscovery[1]]
+                    modification = lhs[newDiscovery[1]]
+                    # multiplying coefficient with known value
+                    modification *= newDiscovery[0]
+                    # subtracting from rhs
+                    #equation[1]-=modification
+                    rhs -= modification
+                    # removing variable from our equation after substitution
+                    #equation[0].pop(newDiscovery[1])
+                    #lhs.pop(newDiscovery[1])
+                    del lhs[(newDiscovery[1])]
+                    # accounting for RHS being negative
+                    if rhs<0:
+                        for coefficients in lhs:
+                            lhs[coefficients]=-lhs[coefficients]
+                        rhs=-rhs
+                    reducedEquation = (lhs,rhs)
+                    # checking for contradiction here
+
+                    if self.canBeSolved(reducedEquation):
+                        # we want to return solved list in the end and remove the associated
+                            # old versions of the solvable equations from our knowledge base
+                        solvedList.append(reducedEquation)
+                        removedList.append(equation)
+                    else:
+                        # in this case, the reduced equation is not solvable
+                            # we want to update the old equation in KB with the reduced version
+                        reducedList.append(reducedEquation)
+                        removedList.append(equation)
+                # if the equation is now in solvable state after substitution, then we can update it and remove
+                #if self.canBeSolved(equation):
+                    #removedList.append(equation)
+            # removing it from our actual knowledge base
+            for removable in removedList:
+                copyEquations.remove(removable)
+            for reducable in reducedList:
+                # adding in reduced equations that arent solvable
+                copyEquations.append(reducable)
+            return solvedList
+
 
         # idea here is we compare every equation to every other one and see if we can reduce further
             # if the reduction results in a smaller equation than the smaller parent, then we go through and remove the larger parent
@@ -726,46 +858,75 @@ class ImprovedKnowledgeBase():
         # method to support user entering clues and knowledge base adapting from there
             # clue is of the form (loc,numMines)
                 # if numMines ==-1 , then the location user queried is a mine
-        # return value is of the form loc,equation
-            # if user gave a mine, equation is None
+        # return value is a deque of any solvable equations after this substitution
+                # from these solvable equations, we can identify mines and free spaces
         # this will facilitate the loop after this step
         def feedFromUser(self,clue):
             # basically just updating what the user sent in
-            if clue[1]==-1:
-                # user queried a mine
-                self.knownValues[clue[0]]=False
-                # updating neighbors
-                neighbors = LibraryFunctions.getValidNeighbors(self.dim,clue[0])
+            numMinesClue = clue[1]
+            loc = clue[0]
+            if numMinesClue == -1:
+                # then agent queried a mine
+                # this is a mine
+                self.knownValues[loc] = False
+                # need to update values of all neighbors
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim,loc)
                 for neighbor in neighbors:
-                    if neighbor in self.knownValues:
-                        # updating results in neighbor
-                        self.knownValues[neighbor][3]+=1
-                return clue[0],None
+                    if neighbor in self.knownValues and self.knownValues[neighbor] != False:
+                        # neighbor is a free space with info
+                        # updating number of known mines
+                        #self.knownValues[neighbors][3] += 1
+                        self.knownValues[neighbor] = \
+                            self.knownValues[neighbor][0], self.knownValues[neighbor][1], self.knownValues[neighbor][2], self.knownValues[neighbor][3]+1
+                # getting result of substitution
+                toSolve = self.substitution((1,loc))
+                return toSolve
+                #return loc, None
             else:
-                # user queried a free space
-                # updating neighbors
-                newEquationDict={}
-                neighbors = LibraryFunctions.getValidNeighbors(self.dim, clue[0])
+                # this is safe, we can update our info and use the clue to generate an equation
+                #representation is F/T mine or not, #safeSquares around, # mines around for sure
+
+                equationLHS = {}
+                equationRHS=numMinesClue
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim,loc)
+                numSafeSquares=0
                 numMines=0
-                numSafe=0
                 for neighbor in neighbors:
                     if neighbor in self.knownValues:
-                        # updating results in neighbor
-                        if self.knownValues[neighbor]!=False:
-                            #updating safe square count around safe squares
-                            newEquationDict[0][neighbor]=1
-                            numSafe+=1
-                            self.knownValues[neighbor][2] += 1
+                        if self.knownValues[neighbor]:
+                            # this is safe
+                            numSafeSquares+=1
                         else:
-                            # this neighbor is a mine
-                            newEquationDict[0][neighbor]=1
+                            # this is a mine
+                                # this decrements from the mine clue as well
                             numMines+=1
-                self.knownValues[clue[0]]=True,clue[1],numSafe,numMines
-                # creating equation for user
-                    #lhs are the locations and coefficients in dictionary
-                    #rhs is the clue value
-                newEquation = newEquationDict,clue[1]
-                return clue[0],newEquation
+                            equationRHS-=1
+                    else:
+                        # then this is part of a generated equation with the clue
+                            #with coefficient of 1
+                        equationLHS[neighbor]=1
+                # updating info about safe square
+                self.knownValues[loc]=True,numMinesClue,numSafeSquares,numMines
+                # this is a free square
+                # need to update values of all neighbors
+                neighbors = LibraryFunctions.getValidNeighbors(self.dim, loc)
+                for neighbor in neighbors:
+                    if neighbor in self.knownValues and self.knownValues[neighbor] != False:
+                        # neighbor is a free space with info
+                        # updating number of known mines
+                        #self.knownValues[neighbor][2] += 1
+                        self.knownValues[neighbor] = \
+                            self.knownValues[neighbor][0],self.knownValues[neighbor][1],self.knownValues[neighbor][2]+1,self.knownValues[neighbor][3]
+                # updating info about the clue associated with query
+                newEquation = equationLHS,equationRHS
+                #self.equations.add(newEquation)
+                # plugging in newEquation and substitution
+                toSolve = self.substitution((0,loc))
+                otherSolvable = self.addReduce(newEquation)
+                for solvable in otherSolvable:
+                    toSolve.append(solvable)
+                return toSolve
+
 
         # debugging print that prints the knowledge base so far and the equations inside it
         def printKnowledgeBase(self):
