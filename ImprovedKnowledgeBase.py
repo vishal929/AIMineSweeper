@@ -1,6 +1,5 @@
 # if we cannot update our knowledge base at some point
         # we proceed with trying to obtain contradictions at unknown points
-from copy import deepcopy
 from random import randint
 from collections import deque
 
@@ -16,6 +15,16 @@ from collections import deque
         if nothing, then try and use probability to pick a hidden square to query
 '''
 
+# idea for global implementation:
+    # basically we keep track of remaining # of mines
+    # after each successful find or unsuccessful find of a mine, we decrement the number of mines
+        # every time we need to query --> when we find a probabalistic cell to query, we should also determine probability
+                                            # of a mine outside of this space
+                                            # if we can do this, we might be better off for selecting safe squares and gathering info
+             #if at any point we query a safe spot and the clue is equal to the number of mines left
+                        # then we can definitely conclude that everything outside the neighbor space is safe and query those first
+            # also, if we somehow find all the mines, then we can immediately conclude that every other square is a safe spot
+                # this should significantly boost runtime and efficiency
 
 # representation
 import LibraryFunctions
@@ -201,21 +210,6 @@ class ImprovedKnowledgeBase():
                 # logic for if rhs is zero and all coefficients are same sign (all are free)
                 if equation[1] == 0:
                     # then this is safe
-                    '''
-                    # updating neighbors
-                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, ourVar)
-                    for neighbor in neighbors:
-                        if neighbor in self.knownValues and self.knownValues[neighbor] != False:
-                            # neighbor is a free space with info
-                            # updating number of known mines
-                            #self.knownValues[neighbor][2] += 1
-                            self.knownValues[neighbor] = \
-                                self.knownValues[neighbor][0], self.knownValues[neighbor][1], \
-                                self.knownValues[neighbor][2] +1, self.knownValues[neighbor][3]
-                    # we can query this and add to knowledge base
-                    # toQuery.push(ourVar)
-                    # solvedVariables.push((0,ourVar))
-                    '''
                     foundSafes.append(ourVar)
                     continue
                 # logic for if all positive terms on lhs equals rhs (positive terms are mines), everything else is free
@@ -240,20 +234,6 @@ class ImprovedKnowledgeBase():
                 else:
                     # then this is safe
                     # updating neighbors
-                    '''
-                    neighbors = LibraryFunctions.getValidNeighbors(self.dim, ourVar)
-                    for neighbor in neighbors:
-                        if neighbor in self.knownValues and self.knownValues[neighbor] != False:
-                            # neighbor is a free space with info
-                            # updating number of known mines
-                            #self.knownValues[neighbors][2] += 1
-                            self.knownValues[neighbor] = \
-                                self.knownValues[neighbor][0], self.knownValues[neighbor][1], \
-                                self.knownValues[neighbor][2] + 1, self.knownValues[neighbor][3]
-                    # we can query this and add to knowledge base
-                    #toQuery.push(ourVar)
-                    #solvedVariables.push((0,ourVar))
-                    '''
                     foundSafes.append(ourVar)
                 # removing the equation from our equation set, as we extracted all info
                 #self.equations.remove(equation)
@@ -348,7 +328,7 @@ class ImprovedKnowledgeBase():
                 #self.equations.add(newEquation)
                 # plugging in newEquation and substitution
                 toSolve = self.substitution((0,loc))
-                otherSolvable = self.addReduce(newEquation)
+                otherSolvable = self.finalAddReduce(newEquation)
                 for solvable in otherSolvable:
                     toSolve.append(solvable)
                 return toSolve
@@ -490,6 +470,90 @@ class ImprovedKnowledgeBase():
                 copyEquations.append(reducable)
             return solvedList
 
+        # idea here is that we find the best reduction possible for each equation
+        def finalPassReduce(self):
+            didReducing = False
+            toSolve = deque()
+            toRemove = deque()
+            toAdd = deque()
+            for i in range(len(self.equations)):
+                first = self.equations[i]
+            #for first in self.equations:
+                if first in toRemove:
+                    # then we shouldnt do more reduction with this
+                    continue
+                if self.canBeSolved(first):
+                    if first not in toSolve:
+                        toSolve.append(first)
+                    if first not in toRemove:
+                        toRemove.append(first)
+                    continue
+                reductionToUse=None
+                secondToUse = None
+                for j in range(i+1,len(self.equations)):
+                    second = self.equations[j]
+                #for second in self.equations:
+                    if second in toRemove:
+                        # then we shouldnt do any more reduction with this
+                        continue
+                    if second == first:
+                        # cant reduce with same equation!
+                        continue
+
+                    if self.canBeSolved(second):
+                        if second not in toSolve:
+                            toSolve.append(second)
+                        if second not in toRemove:
+                            toRemove.append(second)
+                        continue
+                    reductionToCheck = self.reductionEquation(first, second)
+                    if self.canBeSolved(reductionToCheck):
+                        # then I should append this to the solvable list
+                        if reductionToCheck not in toSolve:
+                            toSolve.append(reductionToCheck)
+                    if len(reductionToCheck[0])<len(second[0]):
+                        if reductionToUse is None:
+                            didReducing = True
+                            reductionToUse=reductionToCheck
+                            secondToUse=second
+                        else:
+                            reductionToUse = reductionToCheck
+                            secondToUse = second
+                if reductionToUse is None:
+                    # no other equations for reduction
+                    continue
+                if self.canBeSolved(reductionToUse):
+                    if reductionToUse not in toSolve:
+                        toSolve.append(reductionToUse)
+                else:
+                    toAdd.append(reductionToUse)
+                if secondToUse not in toRemove:
+                    toRemove.append(secondToUse)
+            # removing equations first
+            for removable in toRemove:
+                self.equations.remove(removable)
+            # adding equations second
+            for addable in toAdd:
+                self.equations.append(addable)
+            # returning values
+            return didReducing, toSolve
+
+        # wrapper where we pass reduce after adding the given equation
+        def finalAddReduce(self, equation):
+            toSolve = deque()
+            # if equation is not None and equation[0]:
+            if equation[0]:
+                # this is not empty
+                self.equations.append(equation)
+            # going through reductions
+            result = self.finalPassReduce()
+            for solvable in result[1]:
+                toSolve.append(solvable)
+            while (result[0]):
+                result = self.finalPassReduce()
+                for solvable in result[1]:
+                    toSolve.append(solvable)
+            return toSolve
 
         # idea here is we compare every equation to every other one and see if we can reduce further
             # if the reduction results in a smaller equation than the smaller parent, then we go through and remove the larger parent
@@ -544,11 +608,14 @@ class ImprovedKnowledgeBase():
             # returning values
             return didReducing,toSolve
 
+
+
         # wrapper where we pass reduce after adding the given equation
         def addReduce(self,equation):
             toSolve = deque()
             #if equation is not None and equation[0]:
-            self.equations.append(equation)
+            if equation[0]:
+                self.equations.append(equation)
             # going through reductions
             result = self.passReduce()
             for solvable in result[1]:
@@ -813,7 +880,7 @@ class ImprovedKnowledgeBase():
                     # go through each hidden neighbor
                     # pick any hidden neighbor from cell with lowest (CLUE-minesIdentified)/numHiddenNeighbors
         def probabilityCellToQuery(self):
-            #initial value to test is the middle of the board (in case our base is empty)
+            # initial value is any random cell
             lowestProbLoc = self.randomCellToQuery()
             lowestProb=1
             for cells in self.knownValues:
@@ -853,6 +920,91 @@ class ImprovedKnowledgeBase():
             # now unknowns is a list of unknown locations (we just pick randomly from this list)
             pos = randint(0,len(unknowns)-1)
             return unknowns[pos]
+
+        # idea here is to query the location that is involved in the most equations
+            # the intuition is that querying this location will result in smaller equations sizes or lead to better information
+        def equationCellToQuery(self):
+            # finding the location with most appearances in our equations
+            mostFound = None
+            largest={}
+            for equation in self.equations:
+                if not mostFound:
+                    for loc in equation[0]:
+                        largest[loc]=0
+                else:
+                    for loc in equation[0]:
+                        if loc in largest:
+                            largest[loc]+=1
+                        else:
+                            largest[loc]=0
+            # getting largest
+            for location in largest:
+                if mostFound is None:
+                    mostFound=location
+                else:
+                    if largest[mostFound]<largest[location]:
+                        mostFound=location
+            if mostFound is None:
+                # then we have no equations, we refer to probabililty query
+                return self.probabilityCellToQuery()
+            else:
+                # then we found a place to query
+                return mostFound
+
+        # global selector
+            # this takes into account global number of mines when selecting a mine to query
+            # notice that the length of the deque returned
+                # for confirmed safe values is greater than 1
+                # but for guesses it is equal to 1
+        def globalCellToQuery(self,numMinesRemaining,lastLocQueried):
+            toQuery = deque()
+            if numMinesRemaining==0:
+                return deque()
+            if lastLocQueried is None or self.knownValues[lastLocQueried] is False:
+                res = self.probabilityCellToQuery()
+                toQuery.append(res)
+                return toQuery
+            indicator = self.knownValues[lastLocQueried][1]-self.knownValues[lastLocQueried][3]
+            neighbors = LibraryFunctions.getValidNeighbors(self.dim,lastLocQueried)
+            hiddenNeighbors = len(neighbors) - self.knownValues[lastLocQueried][2] - self.knownValues[lastLocQueried][3]
+            if indicator == numMinesRemaining:
+                # then we know everything else (not a neighbor) is a mine, so we can just query those first
+                for i in range(0,self.dim):
+                    for j in range(0,self.dim):
+                        if (i, j) not in self.knownValues and (i, j) not in neighbors:
+                            # then we can add this to a list to query
+                            toQuery.append((i, j))
+                return toQuery
+            else:
+                if hiddenNeighbors!=0:
+                    if (((1.0)*indicator)/((1.0)*hiddenNeighbors)) <((1.0)*numMinesRemaining)/((1.0)*(self.dim**2 - len(self.knownValues))):
+                        # this means that the probability of finding a mine in neighbors is less than in board outside neighbors
+                        for neighbor in neighbors:
+                            if neighbor not in self.knownValues:
+                                toQuery.append(neighbor)
+                                break
+                        return toQuery
+                    else:
+                        # then we pick any spot outside neighbors
+                        breakIndicator = False
+                        for i in range(self.dim):
+                            if breakIndicator:
+                                break
+                            for j in range(self.dim):
+                                if (i, j) not in neighbors and (i, j) not in self.knownValues:
+                                    toQuery.append((i, j))
+                                    breakIndicator=True
+                                    break
+                        return toQuery
+                else:
+                    # we refer to probability selector
+                    res = self.probabilityCellToQuery()
+                    toQuery.append(res)
+                    return toQuery
+
+
+
+
 
 
         # method to support user entering clues and knowledge base adapting from there

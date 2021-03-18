@@ -9,7 +9,7 @@ from ImprovedKnowledgeBase import ImprovedKnowledgeBase
 import matplotlib.pyplot as plt
 
 
-result = ImprovedProbabilityHelper.improvedProbabilityHelper(50,25,ImprovedKnowledgeBase.probabilityCellToQuery)
+result = ImprovedProbabilityHelper.improvedProbabilityHelper(50,25,ImprovedKnowledgeBase.randomCellToQuery)
 # now performing matplotlib logic to generate the graph
 
 
