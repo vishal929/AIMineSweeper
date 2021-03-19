@@ -1,6 +1,6 @@
 # this file will simulate our minesweeper board and allow us to query certain spots for info
 from random import randint
-
+from collections import deque
 from LibraryFunctions import getValidNeighbors
 
 # BOARD KEEPS TRACK OF QUERIES THAT RESULTED IN AGENT BLOWING UP
@@ -16,6 +16,17 @@ class Board():
     # generates random board with number of mines desired
     def generateBoard(self,numMines):
         genNum=0
+        unmapped=deque()
+        for i in range(self.dim):
+            for j in range(self.dim):
+                unmapped.append((i,j))
+        while genNum!=numMines:
+            toPick = randint(0,len(unmapped)-1)
+            newMine = unmapped[toPick]
+            self.mines.add(newMine)
+            unmapped.remove(newMine)
+            genNum+=1
+            '''
         while genNum!=numMines:
             row = randint(0,self.dim-1)
             col = randint(0,self.dim-1)
@@ -24,6 +35,7 @@ class Board():
                 continue
             self.mines.add((row,col))
             genNum+=1
+            '''
     # pass board from txt file
         #txt file has format 0 and 1 where 1 is a mine
         # calling this method with a file may overwrite the given DIMENSION!

@@ -10,6 +10,7 @@ from collections import deque
             # for the case when no safe squares can be found to query (we have to query something uncertain at this point)
 def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
     while (True):
+        #print(improvedKnowledge.equations)
         if (len(improvedKnowledge.knownValues) == board.dim**2):
             # then we solved the board, we can break
                 # then the board can print out the output or something
@@ -25,7 +26,7 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
             #print("Querying location: "+str(toQuery))
             toSolve = improvedKnowledge.queryCellFromBoard(toQuery,board)
             # run basic agent logic
-
+            '''
             basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
             while basicMines or basicSafes:
                 if basicMines:
@@ -34,6 +35,7 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 if basicSafes:
                     safeLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve,board)
                     #improvedKnowledge.printKnowledgeBase()
+            '''
 
             # initiating loop to see if we can go further
             reduceLoop(improvedKnowledge,toSolve)
@@ -45,7 +47,7 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 # equation solver returns list of discovered mines, and list of discovered free spots from solving the equation
                 discoveredMines, discoveredFree = improvedKnowledge.solvedEquationSolver(equationToSolve)
                 # run basic agent logic
-
+                '''
                 basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
                 for mines in basicMines:
                     if mines not in discoveredMines:
@@ -53,6 +55,7 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                 for safes in basicSafes:
                     if safes not in discoveredFree:
                         discoveredFree.append(safes)
+                '''
 
                 # first we substitute the discovered mines and add any solvable equations to toSolve
                 #newToSolve = deque()
@@ -66,6 +69,7 @@ def improvedSolveBoard(board,improvedKnowledge,selectionFunction):
                         #improvedKnowledge.printKnowledgeBase()
                 # seeing if we can reduce further
                 reduceLoop(improvedKnowledge,toSolve)
+        #print(improvedKnowledge.equations)
 
     # implementation to globally solve the board
         # ideas to implement
@@ -81,7 +85,7 @@ def globalSolveBoard(board,improvedKnowledge):
     numMines = len(board.mines)
     lastLocQueried=None
     while (True):
-        print(numMines)
+        #print(improvedKnowledge.equations)
         if (len(improvedKnowledge.knownValues) == board.dim ** 2):
             # then we solved the board, we can break
             # then the board can print out the output or something
@@ -95,17 +99,20 @@ def globalSolveBoard(board,improvedKnowledge):
                 for j in range(board.dim):
                     if (i,j) not in improvedKnowledge.knownValues:
                         # then this should be queried as it is safe
+                        #print("FOUND GLOBAL SAFE: " +str((i,j)))
                         improvedKnowledge.queryCellFromBoard((i,j),board)
             # we are done here, on next loop iteration, it will print board is solved
-        elif (len(improvedKnowledge.knownValues)+numMines == board.dim**2):
+        elif len(improvedKnowledge.knownValues)+numMines == (board.dim**2) :
             # then we know that everything else is a mine
                 # this is just saying:
                     # if known safe +known mines + remaining mines = number of all spots
                     # then all the remining spots must be mines
             for i in range(board.dim):
                 for j in range(board.dim):
-                    if (i, j) not in improvedKnowledge.knownValues:
-                        improvedKnowledge.knownValues[(i ,j)] = False
+                    loc = (i, j)
+                    if loc not in improvedKnowledge.knownValues:
+                        #print("FOUND GLOBAL MINE: "+str(loc))
+                        improvedKnowledge.knownValues[loc] = False
         else:
             # then we can guess a square
             # this will lead to a query --> reduce --> solve --> substitute loop
@@ -119,7 +126,7 @@ def globalSolveBoard(board,improvedKnowledge):
             #toSolve = improvedKnowledge.queryCellFromBoard(toQuery, board)
             #lastLocQueried=toQuery
             # run basic agent logic
-
+            '''
             basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
             while basicMines or basicSafes:
                 if basicMines:
@@ -128,6 +135,7 @@ def globalSolveBoard(board,improvedKnowledge):
                 if basicSafes:
                     safeLoopHelper(basicMines, basicSafes, improvedKnowledge, toSolve, board)
                     # improvedKnowledge.printKnowledgeBase()
+            '''
 
             # initiating loop to see if we can go further
             reduceLoop(improvedKnowledge, toSolve)
@@ -139,7 +147,7 @@ def globalSolveBoard(board,improvedKnowledge):
                 # equation solver returns list of discovered mines, and list of discovered free spots from solving the equation
                 discoveredMines, discoveredFree = improvedKnowledge.solvedEquationSolver(equationToSolve)
                 # run basic agent logic
-
+                '''
                 basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
                 for mines in basicMines:
                     if mines not in discoveredMines:
@@ -147,6 +155,8 @@ def globalSolveBoard(board,improvedKnowledge):
                 for safes in basicSafes:
                     if safes not in discoveredFree:
                         discoveredFree.append(safes)
+                '''
+
 
                 # first we substitute the discovered mines and add any solvable equations to toSolve
                 # newToSolve = deque()
@@ -160,13 +170,13 @@ def globalSolveBoard(board,improvedKnowledge):
                         # improvedKnowledge.printKnowledgeBase()
                 # seeing if we can reduce further
                 reduceLoop(improvedKnowledge, toSolve)
-                # updating number of mines
-                numMinesUpdate=0
-                for locs in improvedKnowledge.knownValues:
-                    if improvedKnowledge.knownValues[locs] is False:
-                        numMinesUpdate +=1
-                numMines=len(board.mines)-numMinesUpdate
-
+            # updating number of mines
+            numMinesUpdate = 0
+            for locs in improvedKnowledge.knownValues:
+                if improvedKnowledge.knownValues[locs] is False:
+                    numMinesUpdate += 1
+            numMines=len(board.mines)-numMinesUpdate
+        #print(improvedKnowledge.equations)
 
 
 # idea of this method is for the user to feed our knowledge base clues and then the knowledge base will
@@ -251,13 +261,9 @@ def improvedSolveBoardFeed(improvedKnowledge,clue,selectionFunction,nonQueriedSa
                 # then we can just return the first safe value we found
                 return nonQueriedSafeSquares[0]
 
-
-
-
-
-
-
-
+# method for user to feed in clues to solve on a global board (agent knows # of mines)
+def globalImprovedSolveBoardFeed():
+    pass
 
 
 # helper method to clean up code in first method
@@ -273,7 +279,7 @@ def mineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve):
 
     # then we have mines to try and sub
     # run basic agent logic
-
+    '''
     otherMines, otherSafes = improvedKnowledge.basicAgentLogic()
     for mines in otherMines:
         if mines not in basicMines:
@@ -281,6 +287,7 @@ def mineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve):
     for safes in otherSafes:
         if safes not in basicSafes:
             basicSafes.append(safes)
+    '''
 
 # global implementation where we know total number of mines
 def globalMineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve,minesRemaining,minesQueried):
@@ -297,7 +304,7 @@ def globalMineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve,minesRe
 
     # then we have mines to try and sub
     # run basic agent logic
-
+    '''
     otherMines, otherSafes = improvedKnowledge.basicAgentLogic()
     for mines in otherMines:
         if mines not in basicMines:
@@ -305,6 +312,7 @@ def globalMineLoopHelper(basicMines,basicSafes,improvedKnowledge,toSolve,minesRe
     for safes in otherSafes:
         if safes not in basicSafes:
             basicSafes.append(safes)
+    '''
     return numMinesToReturn
 
 # same parameters as above equation
@@ -313,7 +321,7 @@ def safeLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve,boar
     # getting equation from clue from query
     toSolve+= improvedKnowledge.queryCellFromBoard(newSafe,board)
     # run basic agent logic
-
+    '''
     basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
     for mines in basicMines:
         if mines not in discoveredMines:
@@ -321,6 +329,7 @@ def safeLoopHelper(discoveredMines,discoveredFree,improvedKnowledge,toSolve,boar
     for safes in basicSafes:
         if safes not in discoveredFree:
             discoveredFree.append(safes)
+    '''
 
 
 # helper to initiate the loop to keep reducing

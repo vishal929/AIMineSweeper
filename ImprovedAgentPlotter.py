@@ -9,7 +9,8 @@ from ImprovedKnowledgeBase import ImprovedKnowledgeBase
 import matplotlib.pyplot as plt
 
 
-result = ImprovedProbabilityHelper.improvedProbabilityHelper(50,25,ImprovedKnowledgeBase.randomCellToQuery)
+#result = ImprovedProbabilityHelper.improvedProbabilityHelper(40,25,ImprovedKnowledgeBase.probabilityCellToQuery)
+result = ImprovedProbabilityHelper.globalProbabilityHelper(40,25)
 # now performing matplotlib logic to generate the graph
 
 
@@ -17,7 +18,7 @@ result = ImprovedProbabilityHelper.improvedProbabilityHelper(50,25,ImprovedKnowl
 
 plt.scatter(*zip(*result))
 plt.plot(*zip(*result))
-plt.title("Average Success vs Mine Density (on 50x50 board)")
+plt.title("Average Success vs Mine Density (on 40x40 board) where the agent knows the # of mines")
 plt.xlabel("Mine Density")
 plt.ylabel("Average Success (from 25 trials)")
 plt.xticks([0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1])
