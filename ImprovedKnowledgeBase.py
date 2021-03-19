@@ -1148,7 +1148,7 @@ class ImprovedKnowledgeBase():
                 #self.equations.add(newEquation)
                 # plugging in newEquation and substitution
                 toSolve = self.substitution((0,loc))
-                otherSolvable = self.addReduce(newEquation)
+                otherSolvable = self.finalAddReduce(newEquation)
                 for solvable in otherSolvable:
                     toSolve.append(solvable)
                 return toSolve
