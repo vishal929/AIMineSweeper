@@ -101,13 +101,13 @@ if askFeedData()==0:
                     # then we have some clue recommendation for the user to enter
                     print("KNOWLEDGE BASE RECOMMENDS THAT YOU QUERY SPACE: "+str(res))
         elif mechanism ==1:
-            # user wants equation pusher
+            # user wants probabilistic
             while True:
                 clue = askClue()
                 #doing loop feedback logic
                 res = ImprovedAgent.improvedSolveBoardFeed(improvedKnowledge,
                                                            clue,
-                                                           ImprovedKnowledgeBase.equationCellToQuery,
+                                                           ImprovedKnowledgeBase.probabilityCellToQuery,
                                                            nonQueriedSafeSquares)
                 if res == (-1,-1):
                     # we are done
@@ -119,13 +119,13 @@ if askFeedData()==0:
                     # then we have some clue recommendation for the user to enter
                     print("KNOWLEDGE BASE RECOMMENDS THAT YOU QUERY SPACE: "+str(res))
         elif mechanism ==2:
-            # user wants probabilistic
+            # user wants equation pusher
             while True:
                 clue = askClue()
                 #doing loop feedback logic
                 res = ImprovedAgent.improvedSolveBoardFeed(improvedKnowledge,
                                                            clue,
-                                                           ImprovedKnowledgeBase.probabilityCellToQuery,
+                                                           ImprovedKnowledgeBase.equationCellToQuery,
                                                            nonQueriedSafeSquares)
                 if res == (-1,-1):
                     # we are done

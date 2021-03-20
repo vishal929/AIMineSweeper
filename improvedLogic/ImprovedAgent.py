@@ -1,4 +1,4 @@
-import ImprovedKnowledgeBase
+from improvedLogic import ImprovedKnowledgeBase
 from random import randint
 from collections import deque
 
@@ -209,7 +209,6 @@ def improvedSolveBoardFeed(improvedKnowledge,clue,selectionFunction,nonQueriedSa
             # we add to clue to knowledge base, get all the safes, and mines, in total from this step
                 # then we can recommend a square for the user to query
             toSolve = improvedKnowledge.feedFromUser(clue)
-            toSolve+= improvedKnowledge.finalPassReduce()
             foundSafes = deque()
             while toSolve:
                 # solving equation, appending mines/safe squares and proceeding

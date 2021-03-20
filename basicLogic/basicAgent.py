@@ -1,6 +1,6 @@
 # this is a script to solve a board with our basic agent
 from random import randint
-from basicKnowledgeBase import BasicKnowledgeBase
+from basicLogic.basicKnowledgeBase import BasicKnowledgeBase
 
 def basicSolveMines(board,hi,stepByStep):
     while True:
