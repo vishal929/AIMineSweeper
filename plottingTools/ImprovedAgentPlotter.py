@@ -5,12 +5,11 @@
 # calls strategy1 probability helper function and uses it to generate a plot
 
 import ImprovedProbabilityHelper
-from ImprovedKnowledgeBase import ImprovedKnowledgeBase
 import matplotlib.pyplot as plt
 
 
 #result = ImprovedProbabilityHelper.improvedProbabilityHelper(40,25,ImprovedKnowledgeBase.probabilityCellToQuery)
-result = ImprovedProbabilityHelper.globalProbabilityHelper(40,25)
+result = ImprovedProbabilityHelper.globalProbabilityHelper(40, 25)
 # now performing matplotlib logic to generate the graph
 
 

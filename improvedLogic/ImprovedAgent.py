@@ -346,7 +346,7 @@ def stepByStepImprovedSolveBoard(board,improvedKnowledge,selectionFunction):
             # actually querying the square
             print("Querying location: "+str(toQuery))
             toSolve = improvedKnowledge.queryCellFromBoard(toQuery,board)
-            print("Found solvable equations" + str(toSolve))
+            print("Found solvable equations: " + str(toSolve))
             # run basic agent logic
             '''
             basicMines, basicSafes = improvedKnowledge.basicAgentLogic()
@@ -396,6 +396,7 @@ def stepByStepImprovedSolveBoard(board,improvedKnowledge,selectionFunction):
                         #improvedKnowledge.printKnowledgeBase()
                 # seeing if we can reduce further
                 reduceLoop(improvedKnowledge,toSolve)
+            improvedKnowledge.printKnowledgeBase()
 
 
 def stepByStepGlobalSolveBoard(board,improvedKnowledge):
@@ -440,7 +441,7 @@ def stepByStepGlobalSolveBoard(board,improvedKnowledge):
                 print("Querying location: " + str(toQuery))
                 toSolve+=improvedKnowledge.queryCellFromBoard(locToQuery,board)
                 lastLocQueried=locToQuery
-            print("Found solvable equations" + str(toSolve))
+            print("Found solvable equations: " + str(toSolve))
             # actually querying the square
             #toSolve = improvedKnowledge.queryCellFromBoard(toQuery, board)
             #lastLocQueried=toQuery
@@ -500,6 +501,8 @@ def stepByStepGlobalSolveBoard(board,improvedKnowledge):
                 if improvedKnowledge.knownValues[locs] is False:
                     numMinesUpdate += 1
             numMines=len(board.mines)-numMinesUpdate
+            improvedKnowledge.printKnowledgeBase()
+
 
 # helper method to clean up code in first method
     #basicMines is a deque of known mines

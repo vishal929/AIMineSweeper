@@ -1,10 +1,9 @@
 # this file serves just to have a separate probability helper for our advanced agent
 import Board
-import ImprovedKnowledgeBase
-import ImprovedAgent
+from improvedLogic import ImprovedAgent, ImprovedKnowledgeBase
 
 
-    # we will test for a board of size 50x50
+# we will test for a board of size 50x50
         # and for each density, we will do 25 trials
     # selector function is our selection policy for if nothing can be safely identified
         # i.e random selection, probabilistic selection, etc.
@@ -26,7 +25,7 @@ def improvedProbabilityHelper(dim,numTrials,selectorFunction):
             testBoard.generateBoard(int(currDensity*(dim**2)))
             testKB = ImprovedKnowledgeBase.ImprovedKnowledgeBase(dim)
             # running our solver
-            ImprovedAgent.improvedSolveBoard(testBoard,testKB,selectorFunction)
+            ImprovedAgent.improvedSolveBoard(testBoard, testKB, selectorFunction)
             # getting the result
             numMinesIdentified = len(testBoard.mines)-testBoard.numTriggers
             result=((1.0)*numMinesIdentified)/((1.0)*len(testBoard.mines))
@@ -62,7 +61,7 @@ def globalProbabilityHelper(dim,numTrials):
             testBoard.generateBoard(int(currDensity*(dim**2)))
             testKB = ImprovedKnowledgeBase.ImprovedKnowledgeBase(dim)
             # running our solver
-            ImprovedAgent.globalSolveBoard(testBoard,testKB)
+            ImprovedAgent.globalSolveBoard(testBoard, testKB)
             # getting the result
             numMinesIdentified = len(testBoard.mines)-testBoard.numTriggers
             result=((1.0)*numMinesIdentified)/((1.0)*len(testBoard.mines))

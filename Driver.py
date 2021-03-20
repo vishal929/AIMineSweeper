@@ -12,12 +12,14 @@
             # if not txtFile, then we can ask user for dimension
 from collections import deque
 
-import ImprovedAgent
+from improvedLogic import ImprovedAgent
+from basicLogic import basicAgent
 from Board import Board
 # then we can ask user for basic or advanced
 
 # method to ask user for dimension of board
-from ImprovedKnowledgeBase import ImprovedKnowledgeBase
+from improvedLogic.ImprovedKnowledgeBase import ImprovedKnowledgeBase
+from basicLogic.basicKnowledgeBase import BasicKnowledgeBase
 
 
 def askDimension():
@@ -59,7 +61,7 @@ def askFeedData():
     return int(res)
 
 def askPlayByPlay():
-    res = input("Enter 0 if you want play-by-play status, or 1 if you only want the final result")
+    res = input("Enter 0 if you want only final result, or 1 if you want a play-by-play update")
     return int(res)
 
 def askClue():
@@ -73,7 +75,7 @@ def askClue():
 dim = askDimension()
 ourBoard = None
 improvedKnowledge = ImprovedKnowledgeBase(dim)
-if askFeedData()==1:
+if askFeedData()==0:
     # then user has opted to feed clues to our knowledge base from their own game
     nonQueriedSafeSquares=deque()
     if askBasicOrAdvanced()==1:
@@ -141,9 +143,9 @@ if askFeedData()==1:
                 clue = askClue()
                 #doing loop feedback logic
                 res = ImprovedAgent.globalImprovedSolveBoardFeed(improvedKnowledge,
-                                                           clue,
-                                                           ImprovedKnowledgeBase.probabilityCellToQuery,
-                                                           nonQueriedSafeSquares,numMines)
+                                                                 clue,
+                                                                 nonQueriedSafeSquares,
+                                                                 numMines)
                 if res[0] == (-1,-1):
                     # we are done
                     break
@@ -157,7 +159,15 @@ if askFeedData()==1:
                 numMines=res[1]
     else:
         # user wants basic
-        pass
+        kb = BasicKnowledgeBase(dim)
+        while True:
+            clue = askClue()
+            res = basicAgent.basicAgentFeed(kb, clue, nonQueriedSafeSquares)
+            if len(kb.knownMines)+len(kb.safeSquares)==dim**2:
+                #we are done here
+                break
+            # printing location for user to query
+            print("Knowledge base recommends that you query space: "+str(res))
 else:
     # user wants to input a board or direct us to txt file for a board
     if askGeneration()==1:
@@ -178,7 +188,13 @@ else:
     agentType = askBasicOrAdvanced()
     if agentType==0:
         # then basic
-        pass
+        knowledgeBase = BasicKnowledgeBase(dim)
+        if askPlayByPlay()==1:
+            # user wants step by step details
+            basicAgent.basicSolveMines(ourBoard, knowledgeBase, True)
+        else:
+            # user only wants final result
+            basicAgent.basicSolveMines(ourBoard, knowledgeBase, False)
     else:
         # then advanced
         # need to ask about selection mechanism now
@@ -187,15 +203,15 @@ else:
             # user wants random selection
             if askPlayByPlay()==1:
                 #user wants step by step details
-                ImprovedAgent.stepByStepImprovedSolveBoard(ourBoard,improvedKnowledge,ImprovedKnowledgeBase.randomCellToQuery)
+                ImprovedAgent.stepByStepImprovedSolveBoard(ourBoard, improvedKnowledge, ImprovedKnowledgeBase.randomCellToQuery)
             else:
                 #user only wants final result
-                ImprovedAgent.improvedSolveBoard(ourBoard,improvedKnowledge,ImprovedKnowledgeBase.randomCellToQuery)
+                ImprovedAgent.improvedSolveBoard(ourBoard, improvedKnowledge, ImprovedKnowledgeBase.randomCellToQuery)
         elif selectionMechanism==1:
             # user wants equation oriented push selection
             if askPlayByPlay()==1:
                 #user wants step by step details
-                ImprovedAgent.stepByStepImprovedSolveBoard(ourBoard,improvedKnowledge,ImprovedKnowledgeBase.equationCellToQuery)
+                ImprovedAgent.stepByStepImprovedSolveBoard(ourBoard, improvedKnowledge, ImprovedKnowledgeBase.equationCellToQuery)
             else:
                 #user only wants final result
                 ImprovedAgent.improvedSolveBoard(ourBoard, improvedKnowledge, ImprovedKnowledgeBase.equationCellToQuery)
@@ -203,7 +219,7 @@ else:
             #user wants probabilistic selection
             if askPlayByPlay()==1:
                 #user wants step by step details
-                ImprovedAgent.stepByStepImprovedSolveBoard(ourBoard,improvedKnowledge,ImprovedKnowledgeBase.probabilityCellToQuery)
+                ImprovedAgent.stepByStepImprovedSolveBoard(ourBoard, improvedKnowledge, ImprovedKnowledgeBase.probabilityCellToQuery)
             else:
                 #user only wants final result
                 ImprovedAgent.improvedSolveBoard(ourBoard, improvedKnowledge, ImprovedKnowledgeBase.probabilityCellToQuery)
@@ -211,7 +227,7 @@ else:
             # user wants global information selection (agent knows # of mines)
             if askPlayByPlay()==1:
                 #user wants step by step details
-                ImprovedAgent.stepByStepGlobalSolveBoard(ourBoard,improvedKnowledge)
+                ImprovedAgent.stepByStepGlobalSolveBoard(ourBoard, improvedKnowledge)
             else:
                 #user only wants final result
-                ImprovedAgent.globalSolveBoard(ourBoard,improvedKnowledge)
+                ImprovedAgent.globalSolveBoard(ourBoard, improvedKnowledge)
