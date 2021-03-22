@@ -1,6 +1,4 @@
 # this is a script to solve a board with our basic agent
-from random import randint
-from basicLogic.basicKnowledgeBase import BasicKnowledgeBase
 
 def basicSolveMines(board,hi,stepByStep):
     while True:
@@ -76,7 +74,7 @@ def basicAgentFeed(knowledge, clue, nonQueriedSafeSquares):
 
 
 
-
+# helper for solve loop in solveBoard
 def mineLoopHelper(hi):
     minesFound=set()
     reductionDone=False
@@ -88,6 +86,7 @@ def mineLoopHelper(hi):
                 minesFound.add(mines)
     return reductionDone,minesFound
 
+# helper for solve loop in solveBoard
 def safeLoopHelper(board,hi):
     safesFound = set()
     reductionDone = False
@@ -102,6 +101,7 @@ def safeLoopHelper(board,hi):
         hi.queryCellFromBoard(safes,board)
     return reductionDone, safesFound
 
+# helper for feeding a clue to our knowledge base
 def feedSafeLoopHelper(hi):
     safesFound = set()
     reductionDone = False

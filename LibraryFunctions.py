@@ -2,8 +2,7 @@
 
 
 def getValidNeighbors(dim, loc):
-    # returns every possible neighbor
-    # STILL NEED TO CHECK IF NEIGHBOR IS VALID!!!
+    # returns every valid neighbor for the given size
     neighbors = [(loc[0], loc[1] + 1), (loc[0], loc[1] - 1), (loc[0] - 1, loc[1]), (loc[0] + 1, loc[1]),
                  (loc[0] + 1, loc[1] + 1), (loc[0] + 1, loc[1] - 1), (loc[0] - 1, loc[1] - 1),
                  (loc[0] - 1, loc[1] + 1)]

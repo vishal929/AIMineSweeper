@@ -26,41 +26,29 @@ class Board():
             self.mines.add(newMine)
             unmapped.remove(newMine)
             genNum+=1
-            '''
-        while genNum!=numMines:
-            row = randint(0,self.dim-1)
-            col = randint(0,self.dim-1)
-            if (row,col) in self.mines:
-                # this is repeat we continue
-                continue
-            self.mines.add((row,col))
-            genNum+=1
-            '''
     # pass board from txt file
         #txt file has format 0 and 1 where 1 is a mine
-        # calling this method with a file may overwrite the given DIMENSION!
         # please have the txt file in the same level as this module and make sure it has the same dim as the declared board
         # standard format is 0 for free and 1 for board
             # due to differing formats, we will count anything not 1 as zero and anything that is 1 is a mine
+        # make sure that the txt file size matches the size specified in Driver.py
     def getBoardFromFile(self,nameOfFile):
         txtBoard = open(nameOfFile)
         rows = txtBoard.readlines()
         #removing spaces between numbers in each row
+        modifiedRows=[]
         for row in rows:
             # removing end whitespace
-            row=row.strip()
+            modded=row.strip()
             # removing space between numbers and tokenizing based on this
-            row=row.split()
+            modifiedRows.append(modded.split())
         for i in range(self.dim):
            for j in range(self.dim):
-               if rows[i][j]=="1":
+               if modifiedRows[i][j]=="1":
                    # this is a mine
                    self.mines.add((i,j))
         #closing file stream
         txtBoard.close()
-    # converts the current configuration of the board to a txt file with the argument name for the user
-    def convertBoardToFile(self):
-        pass
     # method below for querying a location: returns -1 if loc is mine, else returns # of mines from neighbors
     def queryPosition(self,loc):
         if loc in self.mines:
@@ -88,9 +76,5 @@ class Board():
                     print(" 0 ",end="")
             print()
 
-# test
-#test = Board(10)
-#test.generateBoard(10)
-#test.printBoard()
-#print(test.numTriggers)
+
 

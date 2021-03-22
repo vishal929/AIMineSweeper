@@ -61,6 +61,7 @@ class BasicKnowledgeBase():
                     newSafe.add(neighbor)
 
         return added,newSafe
+    # actually asking board to provide us with a clue
     def queryCellFromBoard(self,loc,board):
         numMinesClue = board.queryPosition(loc)
         if numMinesClue==-1:
@@ -123,20 +124,7 @@ class BasicKnowledgeBase():
             #newline
             print()
 
-    # updates a given matrix representation with changes that the algorithm made
-        #changes is a tuple of (True/False, listOfLocations)
-        #True means the changes are mines for sure
-        #False means the changes are free spaces for sure
-        # list of location is a list of (row,col) pairs to set
-    def setMatrix(self,matrix,changes):
-        if changes[0]:
-            # set these as mines
-            for loc in changes[1]:
-                matrix[loc[0]][loc[1]]=1
-        else:
-            # set these as free spaces
-            for loc in changes[1]:
-                matrix[loc[0]][loc[1]]=0
+
 
     #clue is of the form (loc,clue) where clue is -1 if its a mine
     def feedClue(self,clue):
